@@ -1,6 +1,6 @@
 1
 
-   Abaqus 6.14-1                                  Date 08-9月-2022   Time 02:26:12
+   Abaqus 6.14-1                                  Date 08-9月-2022   Time 02:20:54
    For use by Supplied By SSQ under license from Dassault Systemes or its subsidiary.
 
 
@@ -100,11 +100,11 @@
   *output, history, variable=PRESELECT
   *output, field, variable=PRESELECT
   *output, history, variable=PRESELECT
-  *Step, name=Step-1, nlgeom=YES
+  *Step, name=Step-1, nlgeom=NO
   *output, field, variable=PRESELECT
   *output, history, variable=PRESELECT
-  *Step, name=Step-1, nlgeom=YES
-  *Step, name=Step-1, nlgeom=YES
+  *Step, name=Step-1, nlgeom=NO
+  *Step, name=Step-1, nlgeom=NO
   *static
   *boundary
   *boundary
@@ -112,7 +112,7 @@
   *output, field, variable=PRESELECT
   *output, history, variable=PRESELECT
   *endstep
-  *Step, name=Step-1, nlgeom=YES
+  *Step, name=Step-1, nlgeom=NO
   *static
   *boundary
   *boundary
@@ -140,13 +140,13 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =  0.10000    
-       SYSTEM TIME (SEC)    =   0.0000    
+       USER TIME (SEC)      =   0.0000    
+       SYSTEM TIME (SEC)    =  0.10000    
        TOTAL CPU TIME (SEC) =  0.10000    
        WALLCLOCK TIME (SEC) =          0
 1
 
-   Abaqus 6.14-1                                  Date 08-9月-2022   Time 02:26:13
+   Abaqus 6.14-1                                  Date 08-9月-2022   Time 02:20:54
    For use by Supplied By SSQ under license from Dassault Systemes or its subsidiary.
 
                                                                                                STEP    1  INCREMENT    1
@@ -165,8 +165,6 @@
           THE MAXIMUM TIME INCREMENT ALLOWED IS                0.250    
 
      LINEAR EQUATION SOLVER TYPE         DIRECT SPARSE
-
-          LARGE DISPLACEMENT THEORY WILL BE USED
   
                    M E M O R Y   E S T I M A T E
   
@@ -216,7 +214,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =  0.30000    
-       SYSTEM TIME (SEC)    =   0.0000    
-       TOTAL CPU TIME (SEC) =  0.30000    
+       USER TIME (SEC)      =  0.10000    
+       SYSTEM TIME (SEC)    =  0.10000    
+       TOTAL CPU TIME (SEC) =  0.20000    
        WALLCLOCK TIME (SEC) =          0

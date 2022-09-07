@@ -1,6 +1,6 @@
 1
 
-   Abaqus 6.14-1                                  Date 08-9ÔÂ-2022   Time 01:31:40
+   Abaqus 6.14-1                                  Date 08-9ÔÂ-2022   Time 02:26:13
    For use by Supplied By SSQ under license from Dassault Systemes or its subsidiary.
 
                                                                                  
@@ -380,8 +380,8 @@
      CHECK POINT  END OF SOLVER       
 
        ELAPSED USER TIME (SEC)      =   0.0000    
-       ELAPSED SYSTEM TIME (SEC)    =  0.10000    
-       ELAPSED TOTAL CPU TIME (SEC) =  0.10000    
+       ELAPSED SYSTEM TIME (SEC)    =   0.0000    
+       ELAPSED TOTAL CPU TIME (SEC) =   0.0000    
        ELAPSED WALLCLOCK TIME (SEC) =          0
 
                CONVERGENCE CHECKS FOR EQUILIBRIUM ITERATION     1
@@ -425,9 +425,9 @@
 
      CHECK POINT  END OF SOLVER       
 
-       ELAPSED USER TIME (SEC)      =   0.0000    
+       ELAPSED USER TIME (SEC)      =  0.10000    
        ELAPSED SYSTEM TIME (SEC)    =   0.0000    
-       ELAPSED TOTAL CPU TIME (SEC) =   0.0000    
+       ELAPSED TOTAL CPU TIME (SEC) =  0.10000    
        ELAPSED WALLCLOCK TIME (SEC) =          0
 
                CONVERGENCE CHECKS FOR EQUILIBRIUM ITERATION     3
@@ -472,7 +472,7 @@
 
 
      JOB TIME SUMMARY
-       USER TIME (SEC)      =  0.20000    
-       SYSTEM TIME (SEC)    =  0.10000    
+       USER TIME (SEC)      =  0.30000    
+       SYSTEM TIME (SEC)    =   0.0000    
        TOTAL CPU TIME (SEC) =  0.30000    
-       WALLCLOCK TIME (SEC) =          1
+       WALLCLOCK TIME (SEC) =          0
