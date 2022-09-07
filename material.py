@@ -62,18 +62,18 @@ class Linear_isotropic_planeStrain:
         ], ti.f64)
         
         C_6x6 = np.array([  # voigt notation is related here, utilized to get 3D stress state for visulization
-            [c00, c01, 0., 0., 0., 0.],  # sigma x
-            [c01, c00, 0., 0., 0., 0.],  # sigma y
+            [c00, c01, c01, 0., 0., 0.],  # sigma x
+            [c01, c00, c01, 0., 0., 0.],  # sigma y
             [c01, c01, 0., 0., 0., 0.],  # sigma z
-            [0.,  0.,  G, 0., 0., 0. ],  # tau xy
+            [0.,  0.,  0., G, 0., 0. ],  # tau xy
             [0.,  0.,  0., 0., 0., 0.],  # tau zx
             [0.,  0.,  0., 0., 0., 0.],  # tau yz
         ])
         ti_C_6x6 = ti.Matrix([  # voigt notation is related here, utilized to get 3D stress state for visulization
-            [c00, c01, 0., 0., 0., 0.],  # sigma x
-            [c01, c00, 0., 0., 0., 0.],  # sigma y
+            [c00, c01, c01, 0., 0., 0.],  # sigma x
+            [c01, c00, c01, 0., 0., 0.],  # sigma y
             [c01, c01, 0., 0., 0., 0.],  # sigma z
-            [0.,  0.,  G, 0., 0., 0. ],  # tau xy
+            [0.,  0.,  0., G, 0., 0. ],  # tau xy
             [0.,  0.,  0., 0., 0., 0.],  # tau zx
             [0.,  0.,  0., 0., 0., 0.],  # tau yz
         ], ti.f64)
