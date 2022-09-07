@@ -1,0 +1,16 @@
+Abaqus JOB beamDeflec_quadPSE_largeD_load800_fixX
+Abaqus 6.14-1
+Abaqus License Manager checked out the following licenses:
+Abaqus/Standard checked out 5 tokens from Flexnet server LAPTOP-4ADDCN9C.
+<1019 out of 1024 licenses remain available>.
+Begin Analysis Input File Processor
+9/8/2022 1:31:39 AM
+Run pre.exe
+9/8/2022 1:31:40 AM
+End Analysis Input File Processor
+Begin Abaqus/Standard Analysis
+9/8/2022 1:31:40 AM
+Run standard.exe
+9/8/2022 1:31:41 AM
+End Abaqus/Standard Analysis
+Abaqus JOB beamDeflec_quadPSE_largeD_load800_fixX COMPLETED
