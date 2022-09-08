@@ -54,7 +54,6 @@ class System_of_equations:
         ### sparseMtrx @ dof = rhs
         self.rhs = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # right hand side of the equation system
         self.dof = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom that needs to be solved
-        self.rhs_before_dirichlet = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))
 
         ### define the element types of the body, must be modified latter!!!
         if body.np_elements.shape[1] == 3:
@@ -501,7 +500,7 @@ class System_of_equations:
             else:
                 self.neumannBC(neumannBC["face_set"], 
                                 load_val=neumannBC["traction"])
-        a_from_b(self.rhs_before_dirichlet, self.rhs)
+        
         ### then, apply Dirichlet BC
         dirichletBCs = inp.dirichlet_bc_info
         if geometric_nonlinear == False:
@@ -704,16 +703,14 @@ class System_of_equations:
         self.assemble_sparseMtrx()
         print("\033[32;1m sparse matrix assembling is finished  \033[0m")
 
-        ### use small deformation to compute a step
-        self.impose_boundary_condition(inp, geometric_nonlinear=False)
-        if geometric_nonlinear == False:
-            self.solve_dof(geometric_nonlinear=False)
+        ### impost boundary condition at the initial state
+        self.impose_boundary_condition(inp, geometric_nonlinear)
         
-        if geometric_nonlinear:  # large deformation, use newton method
+        if geometric_nonlinear == False:  # small deformation
+            self.solve_dof(geometric_nonlinear)
+        
+        else:  # large deformation, use newton method
             
-            ### recover the rhs
-            a_from_b(self.rhs, self.rhs_before_dirichlet)
-
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
