@@ -67,10 +67,6 @@ class System_of_equations:
         self.nodal_force = ti.field(ti.f64, shape=(self.dm * self.body.nodes.shape[0]))  
         self.residual_nodal_force = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))
 
-        ### dnatdx of each integration point of each element
-        self.dnatdxs = ti.Matrix.field(self.dm, self.dm, ti.f64, 
-                                       shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
-
         ### dsdx (derivative of shape functio with respect to current coordinate), and volume of each guass point
         self.dsdx = ti.Matrix.field(self.elements[0].n, self.dm, ti.f64, 
                                     shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
@@ -112,81 +108,6 @@ class System_of_equations:
         """get the ddsdde at each integration point of each element"""
         for ele, igp in self.ddsdde:
             self.ddsdde[ele, igp] = self.C
-
-
-    @ti.kernel
-    def get_dnatdxs(self, ):
-        ### compute dNatdx (derivative of natural coordinates with respect to x) of all integration points
-        for ele in self.elements:
-            localNodes = ti.Matrix([[0. for i in range(self.dm)] for j in range(self.elements[0].n)], ti.f64)
-            for i in range(localNodes.n):
-                for j in range(localNodes.m):
-                    localNodes[i, j] = self.nodes[self.elements[ele][i]][j]
-            for id in range(self.ELE.gaussPoints.shape[0]):
-                natCoo = self.ELE.gaussPoints[id]
-                dsdn = self.ELE.dshape_dnat(natCoo)
-                dxdn = ti.Matrix([[0. for i in range(self.dm)] for j in range(self.dm)], ti.f64)
-                dxdn = localNodes.transpose() @ dsdn  # sum over the shape id
-                self.dnatdxs[ele, id] = dxdn.inverse()
-
-
-    @ti.kernel
-    def assemble_sparseMtrx_old(self, ):
-        dm = self.body.dm
-        ### refresh the sparse Matrix if it has been assemble in the previous increment
-        for i, j in self.sparseMtrx:
-            self.sparseMtrx[i, j] = 0.
-        for node0 in self.nodes:
-            for iele in range(self.nodeEles[0].n):
-                if self.nodeEles[node0][iele] != -1:
-                    ele = self.nodeEles[node0][iele]
-                    
-                    localNodes = ti.Matrix([[0. for i in range(self.dm)] for j in range(self.elements[0].n)], ti.f64)
-                    for i in range(localNodes.n):
-                        for j in range(localNodes.m):
-                            localNodes[i, j] = self.nodes[self.elements[ele][i]][j]
-
-                    ### get the gradient of u, express it as the coefficients of u of different nodes
-                    for igp in range(self.ELE.gaussPoints.shape[0]):
-                        gp = self.ELE.gaussPoints[igp]
-                        dsdn = self.ELE.dshape_dnat(gp)  # derivative of shape function with respect to natural coodinates
-                        dsdx = dsdn @ self.dnatdxs[ele, igp]  # dshape / dx
-                        
-                        ### length of each component = dm * nodes_of_element
-                        strain = self.ELE.strain_for_stiffnessMtrx_taichi(dsdx)
-                        ### C : ε， each component is a vector with dimension s, thus maybe can not use operation @ directly
-                        stress_voigt = self.ddsdde[ele, igp] @ strain
-
-                        ### get the sequence of this node in the element
-                        nid = 0  # nid = list(body.np_elements[ele, :]).index(node0)
-                        for i in range(self.elements[0].n):
-                            if self.elements[ele][i] == node0:
-                                nid = i
-                        ### modified latter to automatically adjust to 2d and 3d
-                        dsdx_x_stress = vec_mul_voigtMtrx_2d(dsdx[nid, :], stress_voigt)  
-                        
-                        ### get the volume related to this Gauss point
-                        vol = (localNodes.transpose() @ dsdn).determinant() * self.ELE.gaussWeights[igp]
-
-                        ### integrate to the large sparse matrix
-                        Is = ti.Vector([node0 * dm + 0, 
-                                        node0 * dm + 1])
-                        Js_ = self.elements[ele] * dm  ## need to be modified here
-                        Js = ti.Vector([x + i for x in Js_ for i in range(2)])
-                        for i_local in ti.static(range(Is.n)):
-                            i_global = Is[i_local]
-                            for j_local in ti.static(range(Js.n)):
-                                j_global = Js[j_local]
-                                ### don't use +=, the atomic add will slow the speed
-                                self.sparseMtrx[i_global, j_global] = \
-                                self.sparseMtrx[i_global, j_global] + dsdx_x_stress[i_local][j_local] * vol
-        ### transform the sparse matrix into row major
-        for i in self.sparseMtrx_rowMajor:
-            for j in range(self.sparseMtrx_rowMajor[0].n):
-                self.sparseMtrx_rowMajor[i][j] = 0.
-        for i, j in self.sparseMtrx:
-            j0 = self.sparseMatrix_get_j(i, j)
-            self.sparseMtrx_rowMajor[i][j0] = self.sparseMtrx[i, j]
     
 
     @ti.kernel
@@ -692,9 +613,13 @@ class System_of_equations:
                             nodal_force[node0 * dm + i] + dsdx_x_stress[i] * self.vol[ele, igp]
 
 
-    def solve(self, inp: Inp_info, geometric_nonlinear: bool=False, show_newton_steps: bool=False):
+    def solve(self, inp: Inp_info, show_newton_steps: bool=False):
         
-        if show_newton_steps:
+        geometric_nonlinear = inp.geometric_nonlinear
+        print("\033[35;1m >>> geometric nonlinear is {}. \033[0m".format(
+            {False: "off", True: "on"}[geometric_nonlinear]))
+
+        if show_newton_steps and geometric_nonlinear:
             windowLength = 512
             gui = ti.GUI('show body', res=(windowLength, windowLength))
 
@@ -781,8 +706,6 @@ if __name__ == "__main__":
                                                 poisson_ratio=inp.materials["Elastic"][1])
 
     equationSystem = System_of_equations(body, material)
-    equationSystem.get_dnatdxs()
-    print("\033[35;1m equationSystem.dnatdxs = {}\033[0m".format(equationSystem.dnatdxs))
 
     equationSystem.solve(inp)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))

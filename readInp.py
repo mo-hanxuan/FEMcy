@@ -31,6 +31,7 @@ class Inp_info(object):
         self.face_sets = self.read_face_set(file)
         self.dirichlet_bc_info, self.neumann_bc_info = self.get_boundary_condition(file)
         self.materials = self.read_material(file)
+        self.geometric_nonlinear = self.read_geometric_nonlinear(file)
 
 
     def read_node_element(self, fileName='donut.inp'):
@@ -290,6 +291,20 @@ class Inp_info(object):
                     else:
                         previous_line = None; continue
         return materials
+    
+
+    def read_geometric_nonlinear(self, fileName: str='./donut.inp') -> bool:
+        """read the inp file and get whether geometric nonlinear is on"""
+        with open(fileName, "r") as file:
+            for line in file:
+                if line[:5] == "*Step":
+                    line = line.split("\n")[0].split(",")[-1].split("nlgeom=")[-1]
+                    if line == "NO":
+                        geometric_nonlinear = False
+                    else:
+                        geometric_nonlinear = True
+                    break
+        return geometric_nonlinear
             
 
     def sequence_order_of_body(self, nodes, eSets):
