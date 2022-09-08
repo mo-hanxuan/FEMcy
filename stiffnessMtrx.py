@@ -3,6 +3,7 @@ construct the stiffness matrix
 """
 import taichi as ti
 import numpy as np
+import time
 from body import Body
 from readInp import *
 from material import *
@@ -692,8 +693,12 @@ class System_of_equations:
                             nodal_force[node0 * dm + i] + dsdx_x_stress[i] * self.vol[ele, igp]
 
 
-    def solve(self, inp: Inp_info, geometric_nonlinear: bool=False):
+    def solve(self, inp: Inp_info, geometric_nonlinear: bool=False, show_newton_steps: bool=False):
         
+        if show_newton_steps:
+            windowLength = 512
+            gui = ti.GUI('show body', res=(windowLength, windowLength))
+
         print("\033[32;1m now we begin to assemble the sparse matrix \033[0m")
         self.get_dsdx_and_vol()
         self.assemble_sparseMtrx()
@@ -715,8 +720,9 @@ class System_of_equations:
             self.dirichletBC_forNewtonMethod(inp)
             ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
-            self.body.show2d(disp=self.dof, 
-                             field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+            if show_newton_steps:
+                self.body.show2d(gui, disp=self.dof, 
+                                 field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
 
             if ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
@@ -736,8 +742,9 @@ class System_of_equations:
                     self.dirichletBC_forNewtonMethod(inp)
                     residual = field_abs_max(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
-                    self.body.show2d(disp=self.dof, 
-                                     field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+                    if show_newton_steps:
+                        self.body.show2d(gui, disp=self.dof, 
+                                        field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
 
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
@@ -752,8 +759,10 @@ class System_of_equations:
                         c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                         self.dirichletBC_forNewtonMethod(inp)
                         residual = field_abs_max(self.residual_nodal_force)
-                        self.body.show2d(disp=self.dof, 
-                                         field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+                        if show_newton_steps:
+                            time.sleep(1.)
+                            self.body.show2d(gui, disp=self.dof, 
+                                            field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
 
                     pre_residual = residual
 
@@ -790,4 +799,8 @@ if __name__ == "__main__":
     )))
     stress = equationSystem.body.stresses.to_numpy()[:, :, stress_id]
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()))
-    equationSystem.body.show2d(disp=equationSystem.dof, field=stress)
+    
+    windowLength = 512
+    gui = ti.GUI('show body', res=(windowLength, windowLength))
+    while gui.running:
+        equationSystem.body.show2d(gui, disp=equationSystem.dof, field=stress)

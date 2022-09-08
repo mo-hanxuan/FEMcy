@@ -183,7 +183,6 @@ class Linear_triangular_element(object):
         vertices = nodes
         triangles = elements
         vertices = (vertices - bottomleft) * stretchRatio * 0.95  # in GUI, you need to normalize the coordinates to 0~1
-        print("vertices.max() = {}, vertices.min() = {}".format(vertices.max(), vertices.min()))
         a = np.array([vertices[nodes[0]] for nodes in triangles])
         b = np.array([vertices[nodes[1]] for nodes in triangles])
         c = np.array([vertices[nodes[2]] for nodes in triangles])

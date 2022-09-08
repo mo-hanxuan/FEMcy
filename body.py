@@ -7,7 +7,6 @@
 """
 import numpy as np
 import taichi as ti
-import time
 
 import tiMath
 from colorBar import getColor
@@ -50,7 +49,7 @@ class Body:
         return self.surfaceEdges
 
 
-    def show2d(self, windowLength = 512, disp=[], field=[], sleep_time: float=2.):
+    def show2d(self, gui, disp=[], field=[]):
         self.get_surfaceEdges()
 
         if type(disp) != type([]):
@@ -63,8 +62,6 @@ class Body:
         ymin = min(nodes[i][1] for i in range(self.nodes.shape[0]))
         ymax = max(nodes[i][1] for i in range(self.nodes.shape[0]))
         bottomleft = np.array([xmin, ymin])
-        
-        gui = ti.GUI('show body', res=(windowLength, windowLength))
 
         # lengthScale is the length of the body after 
         # stretch its size to match the window, 
@@ -102,7 +99,6 @@ class Body:
         gui.lines(begin=line0, end=line1, radius=0.75, 
                     color=int("0x{:02x}{:02x}{:02x}".format(24, 24, 24), base=16))
         gui.show()
-        time.sleep(sleep_time)
     
 
     def show(self, ):  ### currently, this is for 2d case
