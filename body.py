@@ -80,11 +80,11 @@ class Body:
                 num1, num2 = tiMath.fraction_reduction(len(field), len(a))
                 field_ = field_.reshape((-1, num2)); field = field.reshape((-1, num1))
                 for i in range(field.shape[0]):
-                    field_[i, :num1] = field[i, :num1]
+                    field_[i, 0:num1] = field[i, 0:num1]
                     average_val = field[i].sum() / len(field[i])
                     field_[i, num1: num2] = average_val
                 field = field_.reshape(-1)
-
+            
             field_max, field_min = field.max(), field.min()
             field_colors = np.zeros(field.shape[0], dtype=np.int32)
             for i in range(len(field)):
@@ -225,7 +225,7 @@ class Body:
 
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
-    fileName = input("\033[32;1mm please give the oofem format's "
+    fileName = input("\033[32;1m please give the oofem format's "
                      "input file path and name: \033[0m")
     ### for example, fileName = D:\FEM\cases\concrete_3point\by_oofem\concrete_3point.in
 

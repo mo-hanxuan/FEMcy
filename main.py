@@ -9,7 +9,7 @@ from tiMath import field_abs_max
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     
-    fileName = input("\033[32;1mm please give the .inp format's "
+    fileName = input("\033[32;1m please give the .inp format's "
                         "input file path and name: \033[0m")
     ### for example, fileName = ./tests/ellip_membrane_linEle_localVeryFine.inp
     inp = Inp_info(fileName)
@@ -28,21 +28,28 @@ if __name__ == "__main__":
     equationSystem.solve(inp, show_newton_steps=True)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
 
-    ### show the body
-    equationSystem.compute_strain_stress()  # modified latter to automatically show Mises stress
+    ### show the body by mises stress
+    equationSystem.compute_strain_stress() 
+    stress = equationSystem.body.mises_stress.to_numpy()
+    print("\033[35;1m maximum mises_stress = {} MPa \033[0m".format(stress.max()), end="; ")
+    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
+    windowLength = 512
+    gui = ti.GUI('mises stress', res=(windowLength, windowLength))
+    while gui.running:
+        equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+                                   field=stress)
+    
+    ### show other stresses
     stress_id = int(input("\033[32;1m {} \033[0m".format(
         "which stress do you want to show: \n"
         "0: σxx, 1: σyy, 2: σxy\n"
         "stress index = "
     )))
-    stress = equationSystem.body.stresses.to_numpy()[:, :, stress_id]
+    stress_id = {0: (0, 0), 1: (1, 1), 2: (0, 1)}[stress_id]
+    stress = equationSystem.body.cauchy_stress.to_numpy()[:, :, stress_id[0], stress_id[1]]
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
-    if inp.geometric_nonlinear:
-        print("\033[35;1m maximum cauchy_stress[{}] = {} MPa \033[0m".format(
-            stress_id, abs(equationSystem.body.cauchy_stress.to_numpy()[:, :, stress_id]).max()))
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
-    
-    windowLength = 512
-    gui = ti.GUI('show body', res=(windowLength, windowLength))
+    gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
     while gui.running:
-        equationSystem.body.show2d(gui, disp=equationSystem.dof, field=stress)
+        equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+                                   field=stress)
