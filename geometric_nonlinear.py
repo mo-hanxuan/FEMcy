@@ -47,4 +47,4 @@ if __name__ == "__main__":
     print("\033[35;1m maximum cauchy_stress[{}] = {} MPa \033[0m".format(
         stress_id, abs(equationSystem.body.cauchy_stress.to_numpy()[:, :, stress_id]).max()))
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
-    equationSystem.body.show2d(disp=equationSystem.dof, field=stress)
+    equationSystem.body.show2d(disp=equationSystem.dof, field=stress, sleep_time=60.)

@@ -701,7 +701,8 @@ class System_of_equations:
 
         ### use small deformation to compute a step
         self.impose_boundary_condition(inp, geometric_nonlinear=False)
-        self.solve_dof(geometric_nonlinear=False)
+        if geometric_nonlinear == False:
+            self.solve_dof(geometric_nonlinear=False)
         
         if geometric_nonlinear:  # large deformation, use newton method
             
@@ -714,6 +715,8 @@ class System_of_equations:
             self.dirichletBC_forNewtonMethod(inp)
             ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
+            self.body.show2d(disp=self.dof, 
+                             field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
 
             if ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
@@ -733,11 +736,13 @@ class System_of_equations:
                     self.dirichletBC_forNewtonMethod(inp)
                     residual = field_abs_max(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
-                    
+                    self.body.show2d(disp=self.dof, 
+                                     field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
                         relax_loop += 1
-                        if relax_loop >= 4:
+                        if relax_loop >= 2:
                             break
                         relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
@@ -747,6 +752,8 @@ class System_of_equations:
                         c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                         self.dirichletBC_forNewtonMethod(inp)
                         residual = field_abs_max(self.residual_nodal_force)
+                        self.body.show2d(disp=self.dof, 
+                                         field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
 
                     pre_residual = residual
 

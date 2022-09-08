@@ -46,3 +46,18 @@ def field_addVec(field: ti.template(), vec: ti.template()):
     for i in field:
         field[i] = field[i] + vec  # do not use +=, beacuse that is atomic add which could lose precision
 
+
+def fraction_reduction(a: int, b: int):
+    """fraction a/b is reduced by x/y
+       https://blog.csdn.net/Cosmos53/article/details/116330862 """
+    x, y = a, b
+    while b > 0:
+        a, b = b, a % b
+    return x // a, y // a
+
+
+if __name__ == "__main__":
+
+    while True:
+        a, b = map(int, input("a, b = ").split(","))
+        print("x, y =", fraction_reduction(a, b))

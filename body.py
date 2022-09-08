@@ -7,6 +7,7 @@
 """
 import numpy as np
 import taichi as ti
+import time
 
 import tiMath
 from colorBar import getColor
@@ -49,13 +50,8 @@ class Body:
         return self.surfaceEdges
 
 
-    def show2d(self, windowLength = 512, disp=[], field=[]):
+    def show2d(self, windowLength = 512, disp=[], field=[], sleep_time: float=2.):
         self.get_surfaceEdges()
-        ### try a random triangle
-        triangle_a = np.array([[0., 0.],])
-        triangle_b = np.array([[0.5, 0.5],])
-        triangle_c = np.array([[1., 0.],])
-        print("triangle_a = {}, triangle_b = {}, triangle_c = {}".format(triangle_a, triangle_b, triangle_c))
 
         if type(disp) != type([]):
             nodes = self.np_nodes + disp.to_numpy().reshape(self.np_nodes.shape)
@@ -78,11 +74,20 @@ class Body:
 
         a, b, c, line0, line1 = self.ELE.show_triangles_2d(self.np_elements, nodes, self.surfaceEdges,
                                                            bottomleft, stretchRatio)
-        print("\033[31;1m a.shape = {}, b.shape = {}, c.shape = {} \033[0m".format(a.shape, b.shape, c.shape))
 
         ### get the color
         if len(field) >= 1:
             field = field.reshape(-1)
+            if len(field) < len(a):  # e.g., quadritic element, color-triangles more than integration points
+                field_ = np.zeros(len(a), dtype=field.dtype)
+                num1, num2 = tiMath.fraction_reduction(len(field), len(a))
+                field_ = field_.reshape((-1, num2)); field = field.reshape((-1, num1))
+                for i in range(field.shape[0]):
+                    field_[i, :num1] = field[i, :num1]
+                    average_val = field[i].sum() / len(field[i])
+                    field_[i, num1: num2] = average_val
+                field = field_.reshape(-1)
+
             field_max, field_min = field.max(), field.min()
             field_colors = np.zeros(field.shape[0], dtype=np.int32)
             for i in range(len(field)):
@@ -92,11 +97,12 @@ class Body:
         else:
             field_colors = 0xED553B
 
-        while gui.running:
-            gui.triangles(a=a, b=b, c=c, color=field_colors)
-            gui.lines(begin=line0, end=line1, radius=0.75, 
-                      color=int("0x{:02x}{:02x}{:02x}".format(24, 24, 24), base=16))
-            gui.show()
+        # while gui.running:
+        gui.triangles(a=a, b=b, c=c, color=field_colors)
+        gui.lines(begin=line0, end=line1, radius=0.75, 
+                    color=int("0x{:02x}{:02x}{:02x}".format(24, 24, 24), base=16))
+        gui.show()
+        time.sleep(sleep_time)
     
 
     def show(self, ):  ### currently, this is for 2d case
