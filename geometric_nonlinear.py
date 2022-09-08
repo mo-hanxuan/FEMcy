@@ -1,6 +1,5 @@
 
 import taichi as ti
-import numpy as np
 from stiffnessMtrx import System_of_equations
 from readInp import *
 from material import *
@@ -27,13 +26,6 @@ if __name__ == "__main__":
     equationSystem = System_of_equations(body, material)
     equationSystem.get_dnatdxs()
     print("\033[35;1m equationSystem.dnatdxs = {}\033[0m".format(equationSystem.dnatdxs))
-
-    # print("\033[32;1m now we begin to assemble the sparse matrix \033[0m")
-    # equationSystem.assemble_sparseMtrx()
-    # print("\033[32;1m sparse matrix assembling is finished  \033[0m")
-
-    # ### apply the boundary condition, where the boundary condition is informed by .inp file
-    # equationSystem.impose_boundary_condition(inp, geometric_nonlinear=True)  # modified latter so that we only set geometric nonlinear once for all 
 
     equationSystem.solve(inp, geometric_nonlinear=True)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))

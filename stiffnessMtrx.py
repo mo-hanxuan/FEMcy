@@ -707,47 +707,48 @@ class System_of_equations:
             
             ### recover the rhs
             a_from_b(self.rhs, self.rhs_before_dirichlet)
-            ini_residual = field_abs_max(self.rhs)
-            print("\033[35;1m initial residual nodal force = {} \033[0m".format(ini_residual))
 
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(inp)
-            pre_residual = field_abs_max(self.residual_nodal_force)
-            print("\033[40;33;1m residual_nodal_force = {} \033[0m".format(pre_residual))
+            ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
+            print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
 
-            newton_loop = -1
-            while pre_residual / (ini_residual + 1.e-30) >= 0.01:  # not convergent
-                
-                newton_loop += 1
-                if newton_loop >= 16:
-                    break
-
-                solver = self.solve_dof(geometric_nonlinear=True)  # update dof
-
-                self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
-                ### self.residual_nodal_force = self.nodal_force - self.rhs
-                c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
-                self.dirichletBC_forNewtonMethod(inp)
-                residual = field_abs_max(self.residual_nodal_force)
-                print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
-                
-                relax_loop = -1; relaxation = 1.
-                while residual > pre_residual:  # relaxation for Newton's method
-                    relax_loop += 1
-                    if relax_loop >= 4:
+            if ini_residual < 1.e-9:
+                print("\033[32;1m good! nonlinear converge! \033[0m")
+            else:
+                newton_loop = -1
+                while pre_residual / (ini_residual + 1.e-30) >= 0.01:  # not convergent
+                    
+                    newton_loop += 1
+                    if newton_loop >= 16:
                         break
-                    relaxation *= 0.5
-                    print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
-                    ### self.dof += relaxation * solver.x
-                    a_equals_b_plus_c_mul_d(self.dof, self.dof, relaxation, solver.x)
+
+                    solver = self.solve_dof(geometric_nonlinear=True)  # dofs = dofs - K^(-1) * residual
+
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
+                    ### self.residual_nodal_force = self.nodal_force - self.rhs
                     c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(inp)
                     residual = field_abs_max(self.residual_nodal_force)
+                    print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
+                    
+                    relax_loop = -1; relaxation = 1.
+                    while residual > pre_residual:  # relaxation for Newton's method
+                        relax_loop += 1
+                        if relax_loop >= 4:
+                            break
+                        relaxation *= 0.5
+                        print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
+                        ### self.dof += relaxation * solver.x
+                        a_equals_b_plus_c_mul_d(self.dof, self.dof, relaxation, solver.x)
+                        self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
+                        c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+                        self.dirichletBC_forNewtonMethod(inp)
+                        residual = field_abs_max(self.residual_nodal_force)
 
-                pre_residual = residual
+                    pre_residual = residual
 
 
 if __name__ == "__main__":
@@ -769,13 +770,6 @@ if __name__ == "__main__":
     equationSystem = System_of_equations(body, material)
     equationSystem.get_dnatdxs()
     print("\033[35;1m equationSystem.dnatdxs = {}\033[0m".format(equationSystem.dnatdxs))
-
-    # print("\033[32;1m now we begin to assemble the sparse matrix \033[0m")
-    # equationSystem.assemble_sparseMtrx()
-    # print("\033[32;1m sparse matrix assembling is finished  \033[0m")
-
-    # ### apply the boundary condition, where the boundary condition is informed by .inp file
-    # equationSystem.impose_boundary_condition(inp)
 
     equationSystem.solve(inp)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
