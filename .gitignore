@@ -6,3 +6,11 @@ imgui.ini
 **/*.cae
 **/example_linearSystem.yml
 *.bak.py
+
+# some intermediate output files of Abaqus
+**/*.sim
+**/*.com
+**/*.log
+**/*.dat
+**/*.prt
+**/*.msg
