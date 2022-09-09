@@ -1,11 +1,10 @@
 **/try.py
 **/__pycache__/
-**/abaqus.rpy*
 imgui.ini
 *.bak
-**/*.cae
 **/example_linearSystem.yml
 *.bak.py
+**/figures.pptx
 
 # some intermediate output files of Abaqus
 **/*.sim
@@ -14,3 +13,5 @@ imgui.ini
 **/*.dat
 **/*.prt
 **/*.msg
+**/*.cae
+**/abaqus.rpy*

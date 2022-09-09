@@ -49,7 +49,7 @@ class Body:
         return self.surfaceEdges
 
 
-    def show2d(self, gui, disp=[], field=[]):
+    def show2d(self, gui, disp=[], field=[], save2path: str=None):
         self.get_surfaceEdges()
 
         if type(disp) != type([]):
@@ -75,7 +75,7 @@ class Body:
         ### get the color
         if len(field) >= 1:
             field = field.reshape(-1)
-            if len(field) < len(a):  # e.g., quadritic element, color-triangles more than integration points
+            if len(field) < len(a):  # e.g., quadratic element, color-triangles more than integration points
                 field_ = np.zeros(len(a), dtype=field.dtype)
                 num1, num2 = tiMath.fraction_reduction(len(field), len(a))
                 field_ = field_.reshape((-1, num2)); field = field.reshape((-1, num1))
@@ -98,7 +98,7 @@ class Body:
         gui.triangles(a=a, b=b, c=c, color=field_colors)
         gui.lines(begin=line0, end=line1, radius=0.75, 
                     color=int("0x{:02x}{:02x}{:02x}".format(24, 24, 24), base=16))
-        gui.show()
+        gui.show(save2path)
     
 
     def show(self, ):  ### currently, this is for 2d case

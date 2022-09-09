@@ -4,7 +4,7 @@ import numpy as np
 import taichi as ti
 
 """
-some variables and functions related to quadritic triangular elements
+some variables and functions related to quadratic triangular elements
 
         1
         |\
@@ -20,7 +20,7 @@ class Quadritic_triangular_element(object):
     def __init__(self, gauss_points_count=3):
         self.dm = 2  # spatial dimension for triangular element
 
-        ## Gauss Points for quadritic triangle element
+        ## Gauss Points for quadratic triangle element
         if gauss_points_count == 3:
             self.gaussPoints = ti.Vector.field(self.dm, ti.f64, shape=(3, ))
             self.gaussPoints.from_numpy(np.array([
@@ -238,7 +238,7 @@ class Quadritic_triangular_element(object):
     def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray, 
                           surfaceEdges: np.ndarray, 
                           bottomleft: np.ndarray, stretchRatio: float,
-                          refine=1):  # convert the quadritic triangle to 4 triangular parts
+                          refine=1):  # convert the quadratic triangle to 4 triangular parts
         """
         this function is called by show_2d in body.py
         input:
@@ -247,7 +247,7 @@ class Quadritic_triangular_element(object):
 
             refine: int, define the refinement depth for visualization
                 refine=1 -> no refinement, just connect the in-edge nodes, 
-                            cenvert the quadritic trangle to 4 linear triangles
+                            cenvert the quadratic trangle to 4 linear triangles
                 refine=2 -> each linear triangle is converted to 4 linear triangles
         output:
             a, b, c (np.ndarray) the three nodes of triangle

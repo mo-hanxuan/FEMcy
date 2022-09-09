@@ -50,6 +50,10 @@ if __name__ == "__main__":
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
+    inpName = fileName.split("/")[-1] if "/" in fileName else fileName.split("\\")[-1]
+    inpName = inpName.split(".inp")[0]
+    equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+        field=stress, save2path="./README.assets/{}.png".format(inpName))
     while gui.running:
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
                                    field=stress)

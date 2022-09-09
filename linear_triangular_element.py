@@ -51,7 +51,7 @@ class Linear_triangular_element(object):
         }
 
         """facet number for reading .inp (Abaqus, CalculiX) file and get the face set"""
-        self.inp_surface_num = [((0, 1), ),  # the counterpart in quadritic element is ((0, 3), (3, 1))
+        self.inp_surface_num = [((0, 1), ),  # the counterpart in quadratic element is ((0, 3), (3, 1))
                                 ((1, 2), ), 
                                 ((2, 0), )]
 
@@ -167,7 +167,7 @@ class Linear_triangular_element(object):
     def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray, 
                           surfaceEdges: np.ndarray, 
                           bottomleft: np.ndarray, stretchRatio: float,
-                        ):  # convert the quadritic triangle to 4 triangular parts
+                        ):  # convert the quadratic triangle to 4 triangular parts
         """
         this function is called by show_2d in body.py
         input:
