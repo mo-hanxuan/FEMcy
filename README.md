@@ -1,8 +1,7 @@
 # FEMcy    
 ## an open-source **finite element** solver with cross-platform **parallel** (CPU/**GPU**) computing
----
 FEMcy is a finite element solver for **structural static/dynamic analysis** in **continuum mechanics**, powered by cross-platform parallel (CPU/GPU) computing language of **Taichi**. FEMcy provides an alternative option besides Abaqus. Compared to the widely-used finite element softwares such as Abaqus, Ansys and COMSOL, we present the FEMcy which is flexible for customized needs by open-source. The conventional black-box of computational structural analysis (**CSD**) is now opened for you to stare at the mechanism behind it, and manipulate it to fit your customized needs. Compared to the open-source finite element softwares such as CalculiX or OOFEM, we provide the implementation on GPU parallel computing, meanwhile maintain the friendly readability by Python language. 
----
+
 ## Features
 + finite element benchmark problems [https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html](https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html)
 + both small deformation and large deformation (geometric nonlinearity) are enabled
@@ -65,7 +64,25 @@ corresponding .inp file:
 
 results can be compared with [https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html](https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html)
 ### 2. comparison of small and large deformation by beam-deflection
-For a horizontal beam ([see problem definition](https://www.comsol.com/blogs/what-is-geometric-nonlinearity)), when fix x-displacement of two ends, and impose y-directional force on one end, the y-displacement will shows large deviation between small deformation and large deformation. <br> 
+For a horizontal beam ([see problem definition](https://www.comsol.com/blogs/what-is-geometric-nonlinearity)), when fix x-displacement of two ends, and impose y-directional force on one end, the y-displacement will shows large deviation between small deformation and large deformation. <br>
+
+![image-20220909191804751](README.assets/image-20220909191804751.png)
+
+<center> *Fig. 2 Beam deflection problem, an ideal example to show great difference with and without consideration of geometric nonlinearity. One end is fixed and another end can move along vertical directional. Large vertical distributed force acts on the movable end to deflect the beam. It's expected that as the loading force goes higher and higher, the displacement at the right end is much smaller with consideration of geometric nonlinearity. *</center>
+
+![beamDeflect](README.assets/beamDeflect.gif)
+
+<center>*Fig. 3 The deformed configurations (each frame is a step in Newton's method) and the final static equilibrium configuration, colored by mises-stress, and computed by FEMcy with consideration of geometric nonlinearity.  *</center>
+
+Table: maximum y-displacement for difference cases
+
+| y-displacement | small deformation (without geometric nonlinearity) | large deformation (with geometric nonlinearity) |
+| :------------: | :------------------------------------------------: | :---------------------------------------------: |
+|     Abaqus     |                       16.34                        |                      6.40                       |
+|     FEMcy      |                       18.52                        |                      6.55                       |
+
+you can see that the results (max y-displacement) show huge differences between small-deformation and large deformation. 
+
 + small deformation
     > ./tests/abaqus_test/beam_deflection/load800_smallDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 

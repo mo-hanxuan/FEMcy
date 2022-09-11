@@ -1,4 +1,5 @@
 import taichi as ti
+import os
 from stiffnessMtrx import System_of_equations
 from readInp import *
 from material import *
@@ -10,8 +11,14 @@ if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     
     fileName = input("\033[32;1m please give the .inp format's "
-                        "input file path and name: \033[0m")
-    ### for example, fileName = ./tests/ellip_membrane_linEle_localVeryFine.inp
+                        "input file path and name: \033[0m")  # e.g., ./tests/ellip_membrane_linEle_localVeryFine.inp
+    inpName = fileName.split("/")[-1] if "/" in fileName else fileName.split("\\")[-1]
+    inpName = inpName.split(".inp")[0]
+    
+    if not os.path.exists("./README.assets/"):
+        os.mkdir("./README.assets/")
+
+    ### use the inp file to apply finite element analysis
     inp = Inp_info(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
@@ -25,7 +32,7 @@ if __name__ == "__main__":
 
     equationSystem = System_of_equations(body, material)
 
-    equationSystem.solve(inp, show_newton_steps=True)
+    equationSystem.solve(inp, show_newton_steps=True, save2path="./README.assets/{}".format(inpName))
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
 
     ### show the body by mises stress
@@ -50,8 +57,7 @@ if __name__ == "__main__":
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
-    inpName = fileName.split("/")[-1] if "/" in fileName else fileName.split("\\")[-1]
-    inpName = inpName.split(".inp")[0]
+
     equationSystem.body.show2d(gui, disp=equationSystem.dof, 
         field=stress, save2path="./README.assets/{}.png".format(inpName))
     while gui.running:

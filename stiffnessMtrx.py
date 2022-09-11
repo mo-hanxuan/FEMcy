@@ -752,7 +752,7 @@ class System_of_equations:
                             nodal_force[node0 * dm + i] + dsdx_x_stress[i] * self.vol[ele, igp]
 
 
-    def solve(self, inp: Inp_info, show_newton_steps: bool=False):
+    def solve(self, inp: Inp_info, show_newton_steps: bool=False, save2path: str=None):
         
         geometric_nonlinear = inp.geometric_nonlinear
         print("\033[35;1m >>> geometric nonlinear is {}. \033[0m".format(
@@ -782,8 +782,10 @@ class System_of_equations:
             ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
             if show_newton_steps:
+                self.compute_strain_stress()
                 self.body.show2d(gui, disp=self.dof, 
-                                 field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+                                 field=self.body.mises_stress.to_numpy(), 
+                                 save2path="{}.png".format(save2path) if save2path else None)
 
             if ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
@@ -804,8 +806,10 @@ class System_of_equations:
                     residual = field_abs_max(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
+                        self.compute_strain_stress()
                         self.body.show2d(gui, disp=self.dof, 
-                                        field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+                                        field=self.body.mises_stress.to_numpy(), 
+                                        save2path="{}({}).png".format(save2path, newton_loop) if save2path else None)
 
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
@@ -822,8 +826,10 @@ class System_of_equations:
                         residual = field_abs_max(self.residual_nodal_force)
                         if show_newton_steps:
                             time.sleep(1.)
+                            self.compute_strain_stress()
                             self.body.show2d(gui, disp=self.dof, 
-                                            field=self.body.cauchy_stress.to_numpy()[:, :, 0, 0])
+                                            field=self.body.mises_stress.to_numpy(), 
+                                            save2path="{}({}_{}).png".format(save2path, newton_loop, relax_loop) if save2path else None)
 
                     pre_residual = residual
 
