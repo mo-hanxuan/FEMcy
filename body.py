@@ -1,9 +1,5 @@
 """
-    body is a class constructed by many domains, 
-    each domain contains nodes and elements,
-
-    body has global node indexes, and global element indexes,
-    domain has set of element number
+    Body is a class constructed by nodes and elements
 """
 import numpy as np
 import taichi as ti
@@ -24,8 +20,6 @@ class Body:
         self.nodes.from_numpy(nodes)
         self.elements.from_numpy(elements)
         self.np_nodes = nodes; self.np_elements = elements
-        # self.nodes = nodes
-        # self.elements = elements
         print("\033[35;1m self.nodes = {} \033[0m".format(self.nodes))
         print("\033[32;1m self.elements = {} \033[0m".format(self.elements))
         self.dm = self.nodes[0].n

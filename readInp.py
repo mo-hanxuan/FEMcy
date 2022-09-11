@@ -1,18 +1,6 @@
 """
-    get the body that composed by elements
-
-    attention: node index start from 1, not 0!
-    (本程序的节点编号从 1 开始， 与 inp 中的节点编号相同)
-
-    hashNodes algorithm:
-        very fast to identify all edges,
-        edges stored by a dict(), 
-        (see 'edgeDic')
-        key of dict:
-            sorted tuple of two nodes numbers of an edge
-    
-    author: mohanxuan, mo-hanxuan@sjtu.edu.cn
-    license: Apache 2.0
+    read the .inp file (Abaqus input file format) and 
+    get the info about the geometric model, mesh, boundary condition, material, etc.
 """
 import numpy as np
 import taichi as ti

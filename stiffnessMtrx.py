@@ -9,7 +9,6 @@ from readInp import *
 from material import *
 from linear_triangular_element import Linear_triangular_element
 from quadritic_triangular_element import Quadritic_triangular_element
-from math_library import relative_error
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_abs_max
 

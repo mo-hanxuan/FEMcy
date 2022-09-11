@@ -1,4 +1,6 @@
+"""some functions for mathmatical usages"""
 import taichi as ti
+
 
 @ti.kernel
 def c_equals_a_minus_b(c: ti.template(), a: ti.template(), b: ti.template()):
@@ -54,6 +56,17 @@ def fraction_reduction(a: int, b: int):
     while b > 0:
         a, b = b, a % b
     return x // a, y // a
+
+
+def relative_error(a, b):
+    """
+    get the relative error between a and b
+    """
+    maxVal = max(abs(a), abs(b))
+    if maxVal > 1.e-9:
+        return abs(a - b) / maxVal  # return relative error
+    else:
+        return abs(a - b)  # return absolute error if a and b are almost 0
 
 
 if __name__ == "__main__":
