@@ -65,7 +65,7 @@ class Inp_info(object):
                 if '*ELEMENT' in line or '*Element' in line or '*element' in line:
                     for type_ in ["C3D8", "C3D20", "3D4", "C3D10", "B31", "C3D6", 
                                 "CPS3", "CPE3", 
-                                "CPS6M", "CPE6M"]:  # the surported element types
+                                "CPS6", "CPE6"]:  # the surported element types
                         if ("TYPE=" in line or "type=" in line) and type_ in line:
                             if type_ not in text:
                                 text[type_] = []
@@ -100,7 +100,7 @@ class Inp_info(object):
             elif eType == "C3D6":
                     elements = elements.reshape((-1, 7))
                     elements = elements[:, 1:]
-            elif eType == "CPS6M" or eType == "CPE6M":
+            elif eType == "CPS6" or eType == "CPE6":
                     elements = elements.reshape((-1, 7))
                     elements = elements[:, 1:]
             eSets[eType] = elements
@@ -186,7 +186,7 @@ class Inp_info(object):
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
         ele_types = {"CPE3": Linear_triangular_element, "CPS3": Linear_triangular_element,
-                    "CPS6M": Quadritic_triangular_element, "CPE6M": Quadritic_triangular_element}
+                    "CPS6": Quadritic_triangular_element, "CPE6": Quadritic_triangular_element}
         print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
         ele_type = list(eSets.keys())[0]
         ele = ele_types[ele_type]()

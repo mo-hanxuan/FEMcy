@@ -179,7 +179,6 @@ class Body:
     def get_boundary(self, redo=False):  # get the boundary of this body
         if not hasattr(self, "boundary") or redo:
             facets = self.ELE.facet_natural_coos.keys() # element boundaries 
-            print("\033[31;1m facets = {} \033[0m".format(facets))
             facetDic = {}
             for iele, ele in enumerate(self.np_elements):
                 for ifacet, facet in enumerate(facets):  

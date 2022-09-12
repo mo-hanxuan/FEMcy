@@ -19,7 +19,7 @@ FEMcy is a finite element solver for **structural static/dynamic analysis** in *
 4. Pre-processing: choose an .inp file (the Abaqus-input-file-format) which defines the geometry, mesh, material and boundary condition for structual analysis. The .inp file can be obtained by Abaqus pre-processing GUI. 
    For example, insert the path and inp file name to the command line:
 
-    >  <font color=green>**please give the .inp format's input file path and name:** </font> ./tests/abaqus_test/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
+    >  <font color=green>**please give the .inp format's input file path and name:** </font> ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 
     more examples of inp files can be found at ./tests folder <br>
 5. after convergence, the deformed body colored by mises-stress (defaultly) is showed at the window.
@@ -48,18 +48,18 @@ Results of simulation:
 
 | $\sigma_{yy}$  [MPa] | linear element | quadratic element |
 | :------------------: | :------------: | :---------------: |
-|        Abaqus        |     93.45      |       92.67       |
+|        Abaqus        |     93.45      |       93.34       |
 |        FEMcy         |     93.56      |       94.88       |
 
-corresponding .inp file:
+corresponding **.inp file**:
 
 + linear element:
 
-> ./tests/ellip_membrane_linEle_localVeryFine.inp
+> ./tests/elliptic_membrane/element_linear/ellip_membrane_linEle_localVeryFine.inp
 
 + quadratic element:
 
-> ./tests/ellip_membrane_quadritic_trig_neumann.inp
+> ./tests/elliptic_membrane/element_quadratic/ellip_membrane_quadritic_trig_neumann.inp
 
 results can be compared with [https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html](https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html)
 ### 2. comparison of small and large deformation by beam-deflection
@@ -67,28 +67,28 @@ For a horizontal beam ([see problem definition](https://www.comsol.com/blogs/wha
 
 ![image-20220909191804751](README.assets/image-20220909191804751.png)
 
-<center> *Fig. 2 Beam deflection problem, an ideal example to show great difference with and without consideration of geometric nonlinearity. One end is fixed and another end can move along vertical directional. Large vertical distributed force acts on the movable end to deflect the beam. It's expected that as the loading force goes higher and higher, the displacement at the right end is much smaller with consideration of geometric nonlinearity. *</center>
+<center> Fig. 2 Beam deflection problem, an ideal example to show great difference with and without consideration of geometric nonlinearity. One end is fixed and another end can move along vertical directional. Large vertical distributed force acts on the movable end to deflect the beam. It's expected that as the loading force goes higher and higher, the displacement at the right end is much smaller with consideration of geometric nonlinearity. </center>
 
 ![beamDeflect](README.assets/beamDeflect.gif)
 
-<center>*Fig. 3 The deformed configurations (each frame is a step in Newton's method) and the final static equilibrium configuration, colored by mises-stress, and computed by FEMcy with consideration of geometric nonlinearity.  *</center>
+<center>Fig. 3 The deformed configurations (each frame is a step in Newton's method) and the final static equilibrium configuration, colored by mises-stress, and computed by FEMcy with consideration of geometric nonlinearity.  </center>
 
 Table: maximum y-displacement for difference cases
 
 | y-displacement | small deformation (without geometric nonlinearity) | large deformation (with geometric nonlinearity) |
 | :------------: | :------------------------------------------------: | :---------------------------------------------: |
-|     Abaqus     |                       16.34                        |                      6.40                       |
+|     Abaqus     |                       16.46                        |                      6.40                       |
 |     FEMcy      |                       18.52                        |                      6.55                       |
 
 you can see that the results (max y-displacement) show huge differences between small-deformation and large deformation. 
 
-+ small deformation
-    > ./tests/abaqus_test/beam_deflection/load800_smallDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
++ .inp file for small deformation
+    > ./tests/beam_deflection/load800_smallDef/beamDeflec_quadPSE_smallD_load800_fixX.inp
 
     you can compare the FEMcy results with Abaqus result: ./tests/abaqus_test/beam_deflection/load800_smallDef/beamDeflec_quadPSE_smallD_load800_fixX.inp
 
-+ large deformation
-    > ./tests/abaqus_test/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
++ .inp file for large deformation
+    > ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 
     FEMcy result can be compared with Abaqus result: ./tests/abaqus_test\beam_deflection\load800_largeDef\beamDeflec_quadPSE_largeD_load800_fixX.odb
 ### 3. Cook's membrane
@@ -112,11 +112,5 @@ This part is on-going.
 + 刘天添老师 太极图形课：弹性物体仿真 [https://www.bilibili.com/video/BV1nr4y1Q73e?spm_id_from=333.337](https://www.bilibili.com/video/BV1nr4y1Q73e?spm_id_from=333.337)
 + awesome examples of other simulation methods from awesome-taichi [https://github.com/taichi-dev/awesome-taichi](https://github.com/taichi-dev/awesome-taichi)
 
-<style>
-table {margin: auto;}
-img{
-  positon: relative;
-  width: 80%;
-  left: 10%; /* 10 + 10 + 80 = 100 */
-}
-</style>
+
+
