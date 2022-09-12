@@ -4,7 +4,7 @@
 """
 import numpy as np
 import taichi as ti
-import os
+import os; import copy
 from linear_triangular_element import Linear_triangular_element
 from quadritic_triangular_element import Quadritic_triangular_element
 
@@ -173,7 +173,7 @@ class Inp_info(object):
                     if splited_line[0] == "*Surface":
                         ### now we get the corresponding set
                         set_name = splited_line[2].split("=")[1]
-                        face_sets[set_name] = set()
+                        face_sets[set_name] = []
                         reading_data = True; continue
                     else:
                         reading_data = False
@@ -181,24 +181,25 @@ class Inp_info(object):
                     ### insert the data into set
                     line = line.split("\n")[0]
                     splited_line = line.split(",")
-                    face_sets[set_name] = {"ele_set": splited_line[0], "face_num": splited_line[1]}
+                    face_sets[set_name].append({"ele_set": splited_line[0], "face_num": splited_line[1]})
         
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
         ele_types = {"CPE3": Linear_triangular_element, "CPS3": Linear_triangular_element,
                     "CPS6M": Quadritic_triangular_element, "CPE6M": Quadritic_triangular_element}
-        print("\033[31;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
+        print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
         ele_type = list(eSets.keys())[0]
         ele = ele_types[ele_type]()
         face2node = ele.inp_surface_num  # face to nodes
         for face_set in face_sets:
-            fset = face_sets[face_set]
-            fnum = int(fset["face_num"].split("S")[1]) - 1  # fnum starts from 0
+            dictList = copy.deepcopy(face_sets[face_set])
             face_sets[face_set] = set()
-            for iele in ele_sets[fset["ele_set"]]:
-                for local_nodes in face2node[fnum]:
-                    global_nodes = (eSets[ele_type][iele][local_node] for local_node in local_nodes)
-                    face_sets[face_set].add(tuple(sorted(global_nodes)))  # modified later             
+            for fset in dictList:
+                fnum = int(fset["face_num"].split("S")[1]) - 1  # fnum starts from 0
+                for iele in ele_sets[fset["ele_set"]]:
+                    for local_nodes in face2node[fnum]:
+                        global_nodes = (eSets[ele_type][iele][local_node] for local_node in local_nodes)
+                        face_sets[face_set].add(tuple(sorted(global_nodes)))  # modified later             
         return face_sets
 
 
@@ -221,13 +222,13 @@ class Inp_info(object):
                     else:
                         reading_data = False
                 if reading_data:
-                        ### now we get the corresponding BC info
-                        splited_line = line.split("\n")[0].split(",")
-                        set_name = splited_line[0]
-                        dof = int(splited_line[1])  # degree of freedom
-                        disp = float(splited_line[3]) if len(splited_line) >= 4 else 0.
-                        dirichlet_bc_info.append(
-                            {"node_set": self.node_sets[set_name], "dof": dof - 1, "val": disp})
+                    ### now we get the corresponding BC info
+                    splited_line = line.split("\n")[0].split(",")
+                    set_name = splited_line[0]
+                    dof = int(splited_line[1])  # degree of freedom
+                    disp = float(splited_line[3]) if len(splited_line) >= 4 else 0.
+                    dirichlet_bc_info.append(
+                        {"node_set": self.node_sets[set_name], "dof": dof - 1, "val": disp})
         
         ### get the Neumann boundary condition
         neumann_bc_info = []
@@ -242,19 +243,19 @@ class Inp_info(object):
                     else:
                         reading_data = False
                 if reading_data:
-                        ### now we get the corresponding BC info
-                        splited_line = line.split("\n")[0].split(",")
-                        set_name = splited_line[0]
-                        if len(splited_line) <= 3:  # pressure load
-                            surface_traction = -float(splited_line[2])  # traction is negative direction of pressure
-                            neumann_bc_info.append(
-                                {"face_set": self.face_sets[set_name], "traction": surface_traction})
-                        else:  # instruct the direction of traction force
-                            surface_traction = float(splited_line[2])
-                            direction = list(map(float, splited_line[3:6]))
-                            neumann_bc_info.append(
-                                {"face_set": self.face_sets[set_name], "traction": surface_traction, 
-                                "direction": np.array(direction)})
+                    ### now we get the corresponding BC info
+                    splited_line = line.split("\n")[0].split(",")
+                    set_name = splited_line[0]
+                    if len(splited_line) <= 3:  # pressure load
+                        surface_traction = -float(splited_line[2])  # traction is negative direction of pressure
+                        neumann_bc_info.append(
+                            {"face_set": self.face_sets[set_name], "traction": surface_traction})
+                    else:  # instruct the direction of traction force
+                        surface_traction = float(splited_line[2])
+                        direction = list(map(float, splited_line[3:6]))
+                        neumann_bc_info.append(
+                            {"face_set": self.face_sets[set_name], "traction": surface_traction, 
+                            "direction": np.array(direction)})
 
         return dirichlet_bc_info, neumann_bc_info
     

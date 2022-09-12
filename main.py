@@ -15,8 +15,7 @@ if __name__ == "__main__":
     inpName = fileName.split("/")[-1] if "/" in fileName else fileName.split("\\")[-1]
     inpName = inpName.split(".inp")[0]
     
-    if not os.path.exists("./README.assets/"):
-        os.mkdir("./README.assets/")
+    inpPath = fileName[: -len(inpName+".inp")]
 
     ### use the inp file to apply finite element analysis
     inp = Inp_info(fileName)
@@ -32,7 +31,7 @@ if __name__ == "__main__":
 
     equationSystem = System_of_equations(body, material)
 
-    equationSystem.solve(inp, show_newton_steps=True, save2path="./README.assets/{}".format(inpName))
+    equationSystem.solve(inp, show_newton_steps=True, save2path=inpPath+inpName)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
 
     ### show the body by mises stress
@@ -42,6 +41,9 @@ if __name__ == "__main__":
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     windowLength = 512
     gui = ti.GUI('mises stress', res=(windowLength, windowLength))
+    equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+                                field=stress, 
+                                save2path=inpPath+"MisesStress_{}.png".format(inpName))
     while gui.running:
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
                                    field=stress)
@@ -59,7 +61,7 @@ if __name__ == "__main__":
     gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
 
     equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-        field=stress, save2path="./README.assets/{}.png".format(inpName))
+        field=stress, save2path=inpPath+"{}.png".format(inpName))
     while gui.running:
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
                                    field=stress)

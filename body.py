@@ -20,8 +20,8 @@ class Body:
         self.nodes.from_numpy(nodes)
         self.elements.from_numpy(elements)
         self.np_nodes = nodes; self.np_elements = elements
-        print("\033[35;1m self.nodes = {} \033[0m".format(self.nodes))
-        print("\033[32;1m self.elements = {} \033[0m".format(self.elements))
+        # print("\033[35;1m self.nodes = {} \033[0m".format(self.nodes))
+        # print("\033[32;1m self.elements = {} \033[0m".format(self.elements))
         self.dm = self.nodes[0].n
         self.disp = ti.Vector.field(len(self.nodes[0]), ti.f64, shape=(len(nodes), ), needs_grad=True)
 
