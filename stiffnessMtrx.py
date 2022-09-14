@@ -308,7 +308,7 @@ class System_of_equations:
     
     @ti.func
     def sparseMatrix_get_j(self, i_global, j_global):
-        j_local = 1
+        j_local = 0
         for j in range(self.sparseIJ[i_global][0]):
             if self.sparseIJ[i_global][j + 1] == j_global:
                 j_local = j
