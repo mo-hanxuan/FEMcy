@@ -1,10 +1,10 @@
 # FEMcy    
 ## an open-source **finite element** solver with cross-platform **parallel** (CPU/**GPU**) computing
-FEMcy is a finite element solver for **structural static/dynamic analysis** in **continuum mechanics**, powered by cross-platform parallel (CPU/GPU) computing language of **Taichi**. FEMcy provides an alternative option besides Abaqus. Compared to the widely-used finite element softwares such as Abaqus, Ansys and COMSOL, we present the FEMcy which is flexible for customized needs by open-source. The conventional black-box of computational structural analysis (**CSD**) is now opened for you to stare at the mechanism behind it, and manipulate it to fit your customized needs. Compared to the open-source finite element softwares such as CalculiX or OOFEM, we provide the implementation on GPU parallel computing, meanwhile maintain the friendly readability by Python language. 
+FEMcy is a finite element solver for **structural static/dynamic analysis** in **continuum mechanics**, powered by cross-platform parallel (CPU/GPU) computing language of [**Taichi**](https://www.taichi-lang.org/). FEMcy provides an alternative option besides Abaqus. Compared to the widely-used finite element softwares such as Abaqus, Ansys and COMSOL, we present the FEMcy which is flexible for customized needs by open-source. The conventional black-box of computational structural analysis (**CSD**) is now opened for you to stare at the mechanism behind it, and manipulate it to fit your customized needs. Compared to the open-source finite element softwares such as CalculiX or OOFEM, we provide the implementation on GPU parallel computing, meanwhile maintain the friendly readability by Python language. 
 
 ## Features
 + both small deformation and large deformation (geometric nonlinearity) are enabled
-+ friendly readability by Python, parallel by **Taichi**
++ friendly readability by Python, parallel by [**Taichi**](https://www.taichi-lang.org/)
 + material nonlinearity (customize your constitutive model)
 + many types of elements including second-order elements
 + Dirichlet boundary condition (BC) and Neumann BC are enabled
@@ -80,7 +80,7 @@ Table: maximum y-displacement for difference cases
 |     Abaqus     |                       16.46                        |                      6.40                       |
 |     FEMcy      |                       18.52                        |                      6.55                       |
 
-you can see that the results (max y-displacement) show huge differences between small-deformation and large deformation. 
+you can see that the results (max y-displacement) show huge differences between small-deformation and large-deformation. 
 
 + .inp file for small deformation
     > ./tests/beam_deflection/load800_smallDef/beamDeflec_quadPSE_smallD_load800_fixX.inp
@@ -99,7 +99,7 @@ This part is on-going.
 + dynamic analysis
 + flexible adaptive-mesh (local-refinement dynamically)
 + contact and friction (maybe powered by the fasionable [IPC (incremental potential contact)](https://ipc-sim.github.io/) someday)
-+ support more file-formats for pre-processing, such as Ansis input file format. Or even develop a pre-processing GUI for you to define the geometry, mesh, material, boundary conditions, etc.
++ support more file-formats for pre-processing, such as Ansys input file format. Or even develop a pre-processing GUI for you to define the geometry, mesh, material, boundary conditions, etc.
 + support more sophisticated post-processing of the output data, such as output data file for VTK visulization or ParaView visulization. 
 
 ## References
