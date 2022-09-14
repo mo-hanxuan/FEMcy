@@ -5,6 +5,7 @@ imgui.ini
 **/example_linearSystem.yml
 *.bak.py
 **/figures.pptx
+tests/*/**/*.png
 
 # some intermediate output files of Abaqus
 **/*.sim

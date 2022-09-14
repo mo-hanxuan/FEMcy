@@ -29,8 +29,8 @@ class ConjugateGradientSolver_rowMajor:
     @ti.func
     def A_get(self, i, j):
         target_j = 0
-        for j0 in ti.static(range(self.ij[i].n)):
-            if self.ij[i][j0] == j:
+        for j0 in range(self.ij[i][0]):
+            if self.ij[i][j0 + 1] == j:
                 target_j = j0
         return self.A[i][target_j]
 
@@ -45,9 +45,9 @@ class ConjugateGradientSolver_rowMajor:
     def compute_Ad(self, ):  # compute A multiple d
         for i in self.A:
             self.Ad[i] = 0.
-            for j0 in ti.static(range(self.ij[i].n)):
-                if self.ij[i][j0] != -1:
-                    self.Ad[i] = self.Ad[i] + self.A[i][j0] * self.d[self.ij[i][j0]]
+            for j0 in range(self.ij[i][0]):
+                # if self.ij[i][j0] != -1:
+                self.Ad[i] = self.Ad[i] + self.A[i][j0] * self.d[self.ij[i][j0 + 1]]
     
 
     @ti.kernel

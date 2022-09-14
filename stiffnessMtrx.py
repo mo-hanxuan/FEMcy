@@ -99,17 +99,18 @@ class System_of_equations:
         ### get the sparseIJ
         body.get_coElement_nodes()
         maxLen = max(len(body.coElement_nodes[node]) for node in range(body.nodes.shape[0]))
-        self.sparseIJ = ti.Vector.field(maxLen * self.dm, ti.i32, shape=(self.nodes.shape[0] * self.dm, ))
-        sparseIJ = -np.ones((self.nodes.shape[0] * self.dm, maxLen * self.dm))
+        self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32, shape=(self.nodes.shape[0] * self.dm, ))
+        sparseIJ = -np.ones((self.nodes.shape[0] * self.dm, maxLen * self.dm + 1))
         for node0 in range(self.nodes.shape[0]):
             js = [node1 * self.dm + i for node1 in body.coElement_nodes[node0] for i in range(self.dm)]
             for i in range(self.dm):
-                sparseIJ[node0 * self.dm + i][:len(js)] = js[:]
+                sparseIJ[node0 * self.dm + i][1:len(js)+1] = js[:]
+                sparseIJ[node0 * self.dm + i][0] = len(js)
         self.sparseIJ.from_numpy(sparseIJ)
 
         ### init the row major form of sparse matrix
         print("\033[32;1m shape of the sparseIJ is {} \033[0m".format(self.sparseIJ.shape))
-        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n, ti.f64, shape=(self.sparseIJ.shape[0], ))
+        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, shape=(self.sparseIJ.shape[0], ))
 
 
     @ti.kernel
@@ -189,21 +190,20 @@ class System_of_equations:
             i_global = node * self.dm + dm_specified
 
             ### modify the right hand side
-            for j0 in range(self.sparseIJ[0].n):
-                j_global = self.sparseIJ[i_global][j0]
-                if j_global != -1:
-                    ### use the symmetric property of the sparse matrix, find sparseMtrx[j_global, i_global]
-                    i0 = self.sparseMatrix_get_j(j_global, i_global)
-                    self.rhs[j_global] = self.rhs[j_global] - sval * self.sparseMtrx_rowMajor[j_global][i0]
+            for j0 in range(self.sparseIJ[i_global][0]):
+                j_global = self.sparseIJ[i_global][j0 + 1]
+                ### use the symmetric property of the sparse matrix, find sparseMtrx[j_global, i_global]
+                i0 = self.sparseMatrix_get_j(j_global, i_global)
+                self.rhs[j_global] = self.rhs[j_global] - sval * self.sparseMtrx_rowMajor[j_global][i0]
             self.rhs[i_global] = sval
 
             ### modify the sparse matrix
-            for j0 in range(self.sparseIJ[0].n):
-                j_global = self.sparseIJ[i_global][j0]
-                if j_global != -1:
-                    self.sparseMtrx_rowMajor[i_global][j0] = 0.
-                    i0 = self.sparseMatrix_get_j(j_global, i_global)
-                    self.sparseMtrx_rowMajor[j_global][i0] = 0.
+            for j0 in range(self.sparseIJ[i_global][0]):
+                j_global = self.sparseIJ[i_global][j0 + 1]
+                # if j_global != -1:
+                self.sparseMtrx_rowMajor[i_global][j0] = 0.
+                i0 = self.sparseMatrix_get_j(j_global, i_global)
+                self.sparseMtrx_rowMajor[j_global][i0] = 0.
             i0 = self.sparseMatrix_get_j(i_global, i_global)
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
 
@@ -238,12 +238,12 @@ class System_of_equations:
             self.residual_nodal_force[i_global] = 0.
 
             ### modify the sparse matrix (i.e., the Jacobian)
-            for j0 in range(self.sparseIJ[0].n):
-                j_global = self.sparseIJ[i_global][j0]
-                if j_global != -1:
-                    self.sparseMtrx_rowMajor[i_global][j0] = 0.
-                    i0 = self.sparseMatrix_get_j(j_global, i_global)
-                    self.sparseMtrx_rowMajor[j_global][i0] = 0.
+            for j0 in range(self.sparseIJ[i_global][0]):
+                j_global = self.sparseIJ[i_global][j0 + 1]
+                # if j_global != -1:
+                self.sparseMtrx_rowMajor[i_global][j0] = 0.
+                i0 = self.sparseMatrix_get_j(j_global, i_global)
+                self.sparseMtrx_rowMajor[j_global][i0] = 0.
             i0 = self.sparseMatrix_get_j(i_global, i_global)
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
     
@@ -310,9 +310,9 @@ class System_of_equations:
     
     @ti.func
     def sparseMatrix_get_j(self, i_global, j_global):
-        j_local = 0
-        for j in range(self.sparseIJ[0].n):
-            if self.sparseIJ[i_global][j] == j_global:
+        j_local = 1
+        for j in range(self.sparseIJ[i_global][0]):
+            if self.sparseIJ[i_global][j + 1] == j_global:
                 j_local = j
         return j_local
         
@@ -329,8 +329,8 @@ class System_of_equations:
         """check whether indexes repeatly appear in sparseIJ"""
         for i in range(self.sparseIJ.shape[0]):
             js = set()
-            for j0 in range(self.sparseIJ[0].n):
-                j = self.sparseIJ[i][j0]
+            for j0 in range(self.sparseIJ[i][0]):
+                j = self.sparseIJ[i][j0 + 1]
                 if j != -1:
                     if j in js:
                         print("\033[31;1m error, {}, {} appear repeatly \033[0m".format(i, j))
