@@ -96,7 +96,7 @@ class System_of_equations:
             nodeEles[node, 0:len(body.nodeEles[node])] = body.nodeEles[node][:]
         self.nodeEles.from_numpy(nodeEles)
 
-        ### get the sparseIJ
+        ### get the sparseIJ (index 0 of each row stores the number of effective indexes in this row)
         body.get_coElement_nodes()
         maxLen = max(len(body.coElement_nodes[node]) for node in range(body.nodes.shape[0]))
         self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32, shape=(self.nodes.shape[0] * self.dm, ))

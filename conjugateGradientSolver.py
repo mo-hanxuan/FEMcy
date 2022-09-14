@@ -14,7 +14,7 @@ class ConjugateGradientSolver_rowMajor:
                  eps=1.e-3,  # the allowable relative error of residual 
                  ):
         self.A = spm  # sparse matrix, also called stiffness matrix or coefficient matrix
-        self.ij = sparseIJ  # for each row, record the colume index of sparse matrix
+        self.ij = sparseIJ  # for each row, record the colume index of sparse matrix (each row, index 0 stores the number of effective indexes)
         self.b = b  # the right hand side (rhs) of the linear system
 
         self.x = ti.field(ti.f64, b.shape[0]); self.x.fill(0.)  # the solution x
