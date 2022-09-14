@@ -200,7 +200,6 @@ class System_of_equations:
             ### modify the sparse matrix
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
-                # if j_global != -1:
                 self.sparseMtrx_rowMajor[i_global][j0] = 0.
                 i0 = self.sparseMatrix_get_j(j_global, i_global)
                 self.sparseMtrx_rowMajor[j_global][i0] = 0.
@@ -240,7 +239,6 @@ class System_of_equations:
             ### modify the sparse matrix (i.e., the Jacobian)
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
-                # if j_global != -1:
                 self.sparseMtrx_rowMajor[i_global][j0] = 0.
                 i0 = self.sparseMatrix_get_j(j_global, i_global)
                 self.sparseMtrx_rowMajor[j_global][i0] = 0.

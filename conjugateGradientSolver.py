@@ -46,7 +46,6 @@ class ConjugateGradientSolver_rowMajor:
         for i in self.A:
             self.Ad[i] = 0.
             for j0 in range(self.ij[i][0]):
-                # if self.ij[i][j0] != -1:
                 self.Ad[i] = self.Ad[i] + self.A[i][j0] * self.d[self.ij[i][j0 + 1]]
     
 
