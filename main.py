@@ -11,7 +11,7 @@ if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     
     fileName = input("\033[32;1m please give the .inp format's "
-                        "input file path and name: \033[0m")  # e.g., ./tests/ellip_membrane_linEle_localVeryFine.inp
+                        "input file path and name: \033[0m")  # e.g., find an .inp file in tests folder and paste its path here
     inpName = fileName.split("/")[-1] if "/" in fileName else fileName.split("\\")[-1]
     inpName = inpName.split(".inp")[0]
     

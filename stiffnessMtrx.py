@@ -256,7 +256,7 @@ class System_of_equations:
             node = nodeSet[node_]
             i_global = node * self.dm + dm_specified
             self.dof[i_global] = sval
-
+    
 
     def neumannBC(self, load_facets, load_val: float, load_dir=np.array([])):  # Neumann boundary condition, 
                                                                        # should be modified latter to taichi version!!!
@@ -277,33 +277,32 @@ class System_of_equations:
         for facet in load_facets:
             load_nodes |= {*facet}
         
-        for node0 in load_nodes:
-            for facet in body.node2boundary[node0]:
-                if facet in load_facets:  
-                    ele = body.boundary[facet]
+        for facet in load_facets:
+            for node0 in facet:  # traction force of this facet applies to node0
+                ele = body.boundary[facet]
 
-                    ### obtain the facet normals on the free-load boundary 
-                    ###     (points to the outside of the element)
-                    localNodes = np.array([body.np_nodes[node, :] for node in body.np_elements[ele, :]])
-                    eleNodesList = body.np_elements[ele, :].tolist()
-                    localFacet = [eleNodesList.index(i) for i in facet]
-                    for gaussId in range(ELE.gaussPointNum_eachFacet):
-                        normal_vector, area_x_gaussWeight = ELE.global_normal(nodes=localNodes, 
-                                                                                facet=localFacet, 
-                                                                                gaussPointId=gaussId)
-                        ### get the flux, which can also be interpreted as traction force
-                        if len(load_dir) == 0: 
-                            flux = load_val * normal_vector * area_x_gaussWeight
-                        else:
-                            flux = load_val * load_dir * area_x_gaussWeight
-                        
-                        ### get the sequence of this node in the element
-                        natCoo = ELE.facet_natural_coos[tuple(sorted(localFacet))][gaussId]
-                        nid = list(body.np_elements[ele, :]).index(node0)
-                        shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid]  # dshape/dx, you need the sequence of this node in the element
-                        
-                        for i in range(self.dm):
-                            self.rhs[node0*self.dm + i] = self.rhs[node0*self.dm + i] + flux[i] * shapeVal
+                ### obtain the facet normals on the free-load boundary 
+                ###     (points to the outside of the element)
+                localNodes = np.array([body.np_nodes[node, :] for node in body.np_elements[ele, :]])
+                eleNodesList = body.np_elements[ele, :].tolist()
+                localFacet = [eleNodesList.index(i) for i in facet]
+                for gaussId in range(ELE.gaussPointNum_eachFacet):
+                    normal_vector, area_x_gaussWeight = ELE.global_normal(nodes=localNodes, 
+                                                                            facet=localFacet, 
+                                                                            gaussPointId=gaussId)
+                    ### get the flux, which can also be interpreted as traction force
+                    if len(load_dir) == 0: 
+                        flux = load_val * normal_vector * area_x_gaussWeight
+                    else:
+                        flux = load_val * load_dir * area_x_gaussWeight   
+
+                    ### get the sequence of this node in the element
+                    natCoo = ELE.facet_natural_coos[tuple(sorted(localFacet))][gaussId]
+                    nid = list(body.np_elements[ele, :]).index(node0)
+                    shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid] 
+
+                    for i in range(self.dm):
+                        self.rhs[node0*self.dm + i] = self.rhs[node0*self.dm + i] + flux[i] * shapeVal
 
     
     @ti.func

@@ -5,6 +5,7 @@ imgui.ini
 **/example_linearSystem.yml
 *.bak.py
 **/figures.pptx
+tests/tests.py
 
 ### ignore the massive number of result png files, but remain the figure of Mises stress
 tests/*/**/*.png 
