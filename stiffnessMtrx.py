@@ -10,7 +10,7 @@ from material import *
 from linear_triangular_element import Linear_triangular_element
 from quadritic_triangular_element import Quadritic_triangular_element
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
-from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_abs_max
+from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_abs_max, get_index_ti
 
 
 @ti.func
@@ -135,10 +135,9 @@ class System_of_equations:
                     ele = nodeEles[node0][iele]
 
                     ### get the sequence of this node in the element
-                    nid = 0  # nid = list(body.np_elements[ele, :]).index(node0)
-                    for i in range(elements[0].n):
-                        if elements[ele][i] == node0:
-                            nid = i
+                    nid = get_index_ti(elements[ele], node0)
+                    if nid == -1:
+                        print("\033[31;1m Error, index not found. nid = -1 \033[0m")
 
                     ### get the gradient of u, express it as the coefficients of u of different nodes
                     for igp in range(self.ELE.gaussPoints.shape[0]):
@@ -735,10 +734,9 @@ class System_of_equations:
                     ele = nodeEles[node0][iele]
 
                     ### get the sequence of this node in the element
-                    nid = 0  # nid = list(body.np_elements[ele, :]).index(node0)
-                    for i in range(self.elements[0].n):
-                        if self.elements[ele][i] == node0:
-                            nid = i
+                    nid = get_index_ti(self.elements[ele], node0)
+                    if nid == -1:
+                        print("\033[31;1m Error, index not found. nid = -1 \033[0m")
 
                     ### assemble stress to the nodal force
                     for igp in range(gaussPoints.shape[0]):
@@ -834,7 +832,7 @@ if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     fileName = input("\033[32;1m please give the .inp format's "
                         "input file path and name: \033[0m")
-    ### for example, fileName = ./tests/ellip_membrane_linEle_localVeryFine.inp
+    ### for example, fileName = ./tests/elliptic_membrane/element_linear/ellip_membrane_linEle_localVeryFine.inp
     inp = Inp_info(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
@@ -853,13 +851,8 @@ if __name__ == "__main__":
 
     ### show the body
     equationSystem.compute_strain_stress()
-    stress_id = int(input("\033[32;1m {} \033[0m".format(
-        "which stress do you want to show: \n"
-        "0: σxx, 1: σyy, 2: σxy\n"
-        "stress index = "
-    )))
-    stress = equationSystem.body.stresses.to_numpy()[:, :, stress_id]
-    print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()))
+    stress = equationSystem.body.mises_stress.to_numpy()
+    print("\033[35;1m maximum mises stress = {} MPa \033[0m".format(abs(stress).max()))
     
     windowLength = 512
     gui = ti.GUI('show body', res=(windowLength, windowLength))
