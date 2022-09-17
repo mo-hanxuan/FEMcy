@@ -20,3 +20,8 @@ tests/*/**/*.png
 **/*.msg
 **/*.cae
 **/abaqus.rpy*
+
+### the massive results data file
+tests/**/*.png
+tests/**/*.odb
+tests/**/*.sta

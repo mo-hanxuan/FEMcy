@@ -49,6 +49,26 @@ def field_addVec(field: ti.template(), vec: ti.template()):
         field[i] = field[i] + vec  # do not use +=, beacuse that is atomic add which could lose precision
 
 
+@ti.func
+def sorted_tiVec(arr):
+    """for small vector, naive bubble sort is acceptable"""
+    for i in ti.static(range(1, arr.n)):
+        for j in ti.static(range(0, arr.n - i)):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+    return arr
+
+
+@ti.func
+def get_index_ti(arr, val) -> int:
+    """get the index of val in vector arr"""
+    index = -1
+    for i in ti.static(range(arr.n)):
+        if arr[i] == val:
+            index = i
+    return index
+
+
 def fraction_reduction(a: int, b: int):
     """fraction a/b is reduced by x/y
        https://blog.csdn.net/Cosmos53/article/details/116330862 """
