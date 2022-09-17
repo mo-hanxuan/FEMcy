@@ -20,6 +20,7 @@ class Inp_info(object):
         self.dirichlet_bc_info, self.neumann_bc_info = self.get_boundary_condition(file)
         self.materials = self.read_material(file)
         self.geometric_nonlinear = self.read_geometric_nonlinear(file)
+        self.time_incs = self.read_time_inc(file)
 
 
     def read_node_element(self, fileName='donut.inp'):
@@ -294,6 +295,26 @@ class Inp_info(object):
                         geometric_nonlinear = True
                     break
         return geometric_nonlinear
+    
+
+    def read_time_inc(self, fileName: str):
+        """read time increment"""
+        with open(fileName, "r") as file:
+            reading_data = False
+            for line in file:
+                if line[:7] == "*Static":
+                    reading_data = True; continue
+                if reading_data:
+                    if line[0:2] == "**":  # skip the notes line
+                        continue
+                    line = line.split("\n")[0].split(",")
+                    line = list(map(float, line))
+                    time_incs = {"ini_inc": line[0], "max_time": line[1], 
+                                 "min_inc": line[2], "max_inc": line[3]}
+                    break
+        if time_incs["ini_inc"] > time_incs["max_inc"]:
+            time_incs["ini_inc"] = time_incs["max_inc"]
+        return time_incs    
             
 
     def sequence_order_of_body(self, nodes, eSets):

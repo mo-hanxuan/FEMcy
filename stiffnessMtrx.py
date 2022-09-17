@@ -112,6 +112,11 @@ class System_of_equations:
         print("\033[32;1m shape of the sparseIJ is {} \033[0m".format(self.sparseIJ.shape))
         self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, shape=(self.sparseIJ.shape[0], ))
 
+        ### initial variables related to time increments
+        self.time0 = 0.; self.time1 = 0.
+        self.dt = 0.
+        self.dof_old = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom at last time step
+
 
     @ti.kernel
     def ddsdde_init(self, ):
@@ -206,8 +211,7 @@ class System_of_equations:
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
 
 
-    def dirichletBC_forNewtonMethod(self, inp: Inp_info):
-        dirichletBCs = inp.dirichlet_bc_info
+    def dirichletBC_forNewtonMethod(self, dirichletBCs):
         for dirichletBC in dirichletBCs:
             self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"], 
                                                     dm_specified=dirichletBC["dof"],
@@ -275,6 +279,8 @@ class System_of_equations:
         load_nodes = set()  # node set of all load facets
         for facet in load_facets:
             load_nodes |= {*facet}
+        
+        self.rhs.fill(0.)  # refresh the right hand side before apply Neumann BC
         
         for facet in load_facets:
             for node0 in facet:  # traction force of this facet applies to node0
@@ -344,7 +350,7 @@ class System_of_equations:
         if not geometric_nonlinear:
             self.dof = solver.x
         else:
-            ### self.dof = self.dof - solver.x
+            ### self.dof = self.dof - solver.x (in Newton's method)
             c_equals_a_minus_b(self.dof, self.dof, solver.x)
         
         return solver
@@ -454,10 +460,13 @@ class System_of_equations:
                     body.stresses[ele, igp] = C @ body.strains[ele, igp]
 
 
-    def impose_boundary_condition(self, inp: Inp_info, geometric_nonlinear: bool=False):
+    def impose_boundary_condition(self, boundary_conditions: dict, 
+                                  geometric_nonlinear: bool=False):
         ### =========== apply the boundary condition ===========
+        neumannBCs = boundary_conditions["neumannBCs"]
+        dirichletBCs = boundary_conditions["dirichletBCs"]
+        
         ### first, apply Neumann BC
-        neumannBCs = inp.neumann_bc_info
         for neumannBC in neumannBCs:
             if "direction" in neumannBC:
                 self.neumannBC(neumannBC["face_set"], 
@@ -468,22 +477,21 @@ class System_of_equations:
                                 load_val=neumannBC["traction"])
         
         ### then, apply Dirichlet BC
-        dirichletBCs = inp.dirichlet_bc_info
         if geometric_nonlinear == False:
             for dirichletBC in dirichletBCs:
-                node_set = ti.field(ti.i32, shape=(len(dirichletBC["node_set"])))
-                node_set.from_numpy(np.array([*dirichletBC["node_set"]]))
-                dirichletBC["node_set"] = node_set  # replace the original node set by field
+                # node_set = ti.field(ti.i32, shape=(len(dirichletBC["node_set"])))
+                # node_set.from_numpy(np.array([*dirichletBC["node_set"]]))
+                # dirichletBC["node_set"] = node_set  # replace the original node set by field
                 self.dirichletBC_linearEquations(
-                        node_set, dirichletBC["dof"], 
+                        dirichletBC["node_set"], dirichletBC["dof"], 
                         dirichletBC["val"])
         else:  # large deformation (geometric nonlinear), dirichlet BC is imposed latter at Newton's method
             for dirichletBC in dirichletBCs:
-                node_set = ti.field(ti.i32, shape=(len(dirichletBC["node_set"])))
-                node_set.from_numpy(np.array([*dirichletBC["node_set"]]))
-                dirichletBC["node_set"] = node_set  # replace the original node set by field
+                # node_set = ti.field(ti.i32, shape=(len(dirichletBC["node_set"])))
+                # node_set.from_numpy(np.array([*dirichletBC["node_set"]]))
+                # dirichletBC["node_set"] = node_set  # replace the original node set by field
                 self.dirichletBC_dof(
-                        node_set, dirichletBC["dof"], 
+                        dirichletBC["node_set"], dirichletBC["dof"], 
                         dirichletBC["val"])
 
 
@@ -747,7 +755,41 @@ class System_of_equations:
 
 
     def solve(self, inp: Inp_info, show_newton_steps: bool=False, save2path: str=None):
+        """solved by multiple time increments, each increment calls slove_inc()"""
+        max_inc = inp.time_incs["max_inc"]
+        min_inc = inp.time_incs["min_inc"]
+        max_time = inp.time_incs["max_time"]
+        self.dt = inp.time_incs["ini_inc"]
         
+        neumannBCs = copy.deepcopy(inp.neumann_bc_info)
+        dirichletBCs = copy.deepcopy(inp.dirichlet_bc_info)
+        for dirichletBC in dirichletBCs:
+            node_set = ti.field(ti.i32, shape=(len(dirichletBC["node_set"])))
+            node_set.from_numpy(np.array([*dirichletBC["node_set"]]))
+            dirichletBC["node_set"] = node_set  # replace the original node set by field
+        boundary_conditions = {"neumannBCs": neumannBCs, "dirichletBCs": dirichletBCs}
+
+        while self.time1 < max_time:
+            self.time1 = self.time0 + self.dt
+            print("\033[40;33;1m >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+                                ">>>>> time1 = {} \033[0m".format(self.time1))
+            if self.time1 > max_time:
+                self.time1 = max_time
+            load_ratio = self.time1 / max_time
+            ### set the boundary according to load ratio
+            for id, neumannBC in enumerate(neumannBCs):
+                neumannBC["traction"] = inp.neumann_bc_info[id]["traction"] * load_ratio
+            for id, dirichletBC in enumerate(dirichletBCs):
+                dirichletBC["val"] = inp.dirichlet_bc_info[id]["val"] * load_ratio
+            ### advance a time increment
+            self.advance_inc(inp, boundary_conditions, show_newton_steps, save2path)  # update self.dof
+            a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
+            self.time0 = self.time1
+    
+    
+    def advance_inc(self, inp: Inp_info, boundary_conditions: dict, 
+                  show_newton_steps: bool=False, save2path: str=None):
+        """solve at each time increment"""
         geometric_nonlinear = inp.geometric_nonlinear
         print("\033[35;1m >>> geometric nonlinear is {}. \033[0m".format(
             {False: "off", True: "on"}[geometric_nonlinear]))
@@ -762,7 +804,7 @@ class System_of_equations:
         print("\033[32;1m sparse matrix assembling is finished  \033[0m")
 
         ### impost boundary condition at the initial state
-        self.impose_boundary_condition(inp, geometric_nonlinear)
+        self.impose_boundary_condition(boundary_conditions, geometric_nonlinear)
         
         if geometric_nonlinear == False:  # small deformation
             self.solve_dof(geometric_nonlinear)
@@ -772,14 +814,14 @@ class System_of_equations:
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
-            self.dirichletBC_forNewtonMethod(inp)
+            self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
             ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
             if show_newton_steps:
                 self.compute_strain_stress()
                 self.body.show2d(gui, disp=self.dof, 
                                  field=self.body.mises_stress.to_numpy(), 
-                                 save2path="{}.png".format(save2path) if save2path else None)
+                                 save2path="{}_{}.png".format(save2path, self.time1) if save2path else None)
 
             if ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
@@ -788,7 +830,7 @@ class System_of_equations:
                 while pre_residual / (ini_residual + 1.e-30) >= 0.01:  # not convergent
                     
                     newton_loop += 1
-                    if newton_loop >= 16:
+                    if newton_loop >= 8:
                         break
 
                     solver = self.solve_dof(geometric_nonlinear=True)  # dofs = dofs - K^(-1) * residual
@@ -796,14 +838,14 @@ class System_of_equations:
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
                     c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
-                    self.dirichletBC_forNewtonMethod(inp)
+                    self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
                     residual = field_abs_max(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
                         self.compute_strain_stress()
                         self.body.show2d(gui, disp=self.dof, 
                                         field=self.body.mises_stress.to_numpy(), 
-                                        save2path="{}({}).png".format(save2path, newton_loop) if save2path else None)
+                                        save2path="{}_{}({}).png".format(save2path, self.time1, newton_loop) if save2path else None)
 
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
@@ -816,14 +858,14 @@ class System_of_equations:
                         a_equals_b_plus_c_mul_d(self.dof, self.dof, relaxation, solver.x)
                         self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                         c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
-                        self.dirichletBC_forNewtonMethod(inp)
+                        self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
                         residual = field_abs_max(self.residual_nodal_force)
                         if show_newton_steps:
                             time.sleep(1.)
                             self.compute_strain_stress()
                             self.body.show2d(gui, disp=self.dof, 
                                             field=self.body.mises_stress.to_numpy(), 
-                                            save2path="{}({}_{}).png".format(save2path, newton_loop, relax_loop) if save2path else None)
+                                            save2path="{}_{}({}_{}).png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
 
                     pre_residual = residual
 

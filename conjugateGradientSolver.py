@@ -17,7 +17,7 @@ class ConjugateGradientSolver_rowMajor:
         self.ij = sparseIJ  # for each row, record the colume index of sparse matrix (each row, index 0 stores the number of effective indexes)
         self.b = b  # the right hand side (rhs) of the linear system
 
-        self.x = ti.field(ti.f64, b.shape[0]); self.x.fill(0.)  # the solution x
+        self.x = ti.field(ti.f64, b.shape[0])  # the solution x
         self.r = ti.field(ti.f64, b.shape[0])  # the residual
         self.d = ti.field(ti.f64, b.shape[0])  # the direction of change of x
         self.M = ti.field(ti.f64, b.shape[0]); self.M_init()  # the inverse of precondition diagonal matrix, M^(-1) actually
@@ -118,7 +118,7 @@ class ConjugateGradientSolver_rowMajor:
             rmax = self.rmax()  # the infinite norm of residual, shold be modified latter to the reduce max
             t1 = time()
 
-            if i % 32 == 0:
+            if i % 64 == 0:
                 print("\033[35;1m the {}-th loop, norm of residual is {}, in-loop time is {} s\033[0m".format(
                     i, rmax, t1 - t0
                 ))
