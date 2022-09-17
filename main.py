@@ -61,7 +61,7 @@ if __name__ == "__main__":
     gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
 
     equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-        field=stress, save2path=inpPath+"{}.png".format(inpName))
+        field=stress, save2path=inpPath+"stress{}_{}.png".format(stress_id, inpName))
     while gui.running:
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
                                    field=stress)
