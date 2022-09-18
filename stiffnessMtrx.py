@@ -3,7 +3,7 @@ construct the stiffness matrix
 """
 import taichi as ti
 import numpy as np
-import time
+import time; from typing import Tuple
 from body import Body
 from readInp import *
 from material import *
@@ -769,12 +769,12 @@ class System_of_equations:
             dirichletBC["node_set"] = node_set  # replace the original node set by field
         boundary_conditions = {"neumannBCs": neumannBCs, "dirichletBCs": dirichletBCs}
 
+        kinc = -1  # the number of time increment
         while self.time1 < max_time:
-            self.time1 = self.time0 + self.dt
+            kinc += 1
+            self.time1 = min(self.time0 + self.dt, max_time)
             print("\033[40;33;1m >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-                                ">>>>> time1 = {} \033[0m".format(self.time1))
-            if self.time1 > max_time:
-                self.time1 = max_time
+                                ">>>>> time1 = {}, dt = {} \033[0m".format(self.time1, self.dt))
             load_ratio = self.time1 / max_time
             ### set the boundary according to load ratio
             for id, neumannBC in enumerate(neumannBCs):
@@ -782,13 +782,28 @@ class System_of_equations:
             for id, dirichletBC in enumerate(dirichletBCs):
                 dirichletBC["val"] = inp.dirichlet_bc_info[id]["val"] * load_ratio
             ### advance a time increment
-            self.advance_inc(inp, boundary_conditions, show_newton_steps, save2path)  # update self.dof
+            converged, newton_loop = self.advance_inc(inp, boundary_conditions, show_newton_steps, save2path, kinc)  # update self.dof
+            if not converged:
+                self.time1 = self.time0
+                self.dt /= 4.
+                a_from_b(self.dof, self.dof_old)
+                kinc -= 1
+                if self.dt < min_inc:
+                    print("\033[31;1m allowable minimum dt is reached, "
+                          "Newton's method not converges, solution is not found. \033[0m")
+                    break
+                continue
+            ### increast dt if fast convergence occurs in previous dt
+            if newton_loop <= 4:
+                self.dt = min(self.dt * 1.5, max_inc)
             a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
             self.time0 = self.time1
     
     
     def advance_inc(self, inp: Inp_info, boundary_conditions: dict, 
-                  show_newton_steps: bool=False, save2path: str=None):
+                    show_newton_steps: bool=False, save2path: str=None, 
+                    kinc: int=0  # the number of time increment
+                  ) -> Tuple[bool, int]:
         """solve at each time increment"""
         geometric_nonlinear = inp.geometric_nonlinear
         print("\033[35;1m >>> geometric nonlinear is {}. \033[0m".format(
@@ -808,6 +823,7 @@ class System_of_equations:
         
         if geometric_nonlinear == False:  # small deformation
             self.solve_dof(geometric_nonlinear)
+            return True, 0
         
         else:  # large deformation, use newton method
             
@@ -815,23 +831,25 @@ class System_of_equations:
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            ini_residual = pre_residual = field_abs_max(self.residual_nodal_force)
-            print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(ini_residual))
+            pre_residual = field_abs_max(self.residual_nodal_force)
+            if not hasattr(self, "ini_residual"):
+                self.ini_residual = pre_residual
+            print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
             if show_newton_steps:
                 self.compute_strain_stress()
                 self.body.show2d(gui, disp=self.dof, 
                                  field=self.body.mises_stress.to_numpy(), 
                                  save2path="{}_{}.png".format(save2path, self.time1) if save2path else None)
 
-            if ini_residual < 1.e-9:
+            if self.ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
             else:
                 newton_loop = -1
-                while pre_residual / (ini_residual + 1.e-30) >= 0.01:  # not convergent
+                while pre_residual / (self.ini_residual + 1.e-30) >= 0.01:  # not convergent
                     
                     newton_loop += 1
-                    if newton_loop >= 8:
-                        break
+                    if newton_loop >= 16:
+                        return False, newton_loop  # Newton's method has not converged
 
                     solver = self.solve_dof(geometric_nonlinear=True)  # dofs = dofs - K^(-1) * residual
 
@@ -850,7 +868,7 @@ class System_of_equations:
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
                         relax_loop += 1
-                        if relax_loop >= 2:
+                        if relax_loop >= 0:
                             break
                         relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
@@ -866,8 +884,8 @@ class System_of_equations:
                             self.body.show2d(gui, disp=self.dof, 
                                             field=self.body.mises_stress.to_numpy(), 
                                             save2path="{}_{}({}_{}).png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
-
                     pre_residual = residual
+            return True, newton_loop  # Newton's method converges
 
 
 if __name__ == "__main__":
