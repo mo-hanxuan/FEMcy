@@ -1764,7 +1764,7 @@
    1747,   13.2508249,   34.5331039
    1748,    29.416172,    43.986145
    1749,    14.932991,   35.2878799
-*Element, type=CPE6
+*Element, type=CPE6M
   1,  154,   77,   78,  461,  462,  463
   2,  147,   70,   71,  464,  465,  466
   3,  248,  244,  191,  467,  468,  469
@@ -2636,7 +2636,7 @@ _right_face_S1, S1
 ** 
 *Step, name=Step-1, nlgeom=NO
 *Static
-1.,         1.,     1.,       1.
+1.,         1.,     0.5e-2,       1.
 ** ini,  max_time, min_inc, max_inc
 ** 
 ** BOUNDARY CONDITIONS
@@ -2649,8 +2649,8 @@ left_face, 2, 2
 ** LOADS
 ** 
 ** Name: load_force   Type: Surface traction
-*Dsload, follower=NO
-right_face, TRVEC, 6.25, 0., 1., 0.
+*Dsload, constant resultant=YES
+right_face, TRVEC, 2.5, 0., 1., 0.
 ** 
 ** OUTPUT REQUESTS
 ** 

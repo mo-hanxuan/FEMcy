@@ -134,7 +134,7 @@ class Body:
                 scene.point_light(pos=(-light_distance, 0., light_distance), color=(0., 1., 0.))
                 scene.point_light(pos=(light_distance, 0., light_distance), color=(0., 1., 0.))
                 scene.ambient_light(color=(0.2, 0.2, 0.2))
-                scene.mesh(vertices=vertices, indices=indices, two_sided=True)
+                scene.mesh(vertices=vertices, indices=indices, two_sided=True, show_wireframe=True)
                 scene.particles(centers=vertices, radius=1.)
                 canvas.scene(scene)
 

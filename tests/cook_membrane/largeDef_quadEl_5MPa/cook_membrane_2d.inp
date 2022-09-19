@@ -2649,7 +2649,7 @@ left_face, 2, 2
 ** LOADS
 ** 
 ** Name: load_force   Type: Surface traction
-*Dsload, constant resultant=YES
+*Dsload, , follower=NO
 right_face, TRVEC, 5., 0., 1., 0.
 ** 
 ** OUTPUT REQUESTS

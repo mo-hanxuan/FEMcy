@@ -1103,7 +1103,7 @@ _y_load_face_S2, S2
 ** 
 *Step, name=Step-1, nlgeom=NO
 *Static
-1., 1., 1., 1.
+0.25, 1., 1e-05, 0.25
 ** 
 ** BOUNDARY CONDITIONS
 ** 
@@ -1112,13 +1112,13 @@ _y_load_face_S2, S2
 left_face, 1, 1
 left_face, 2, 2
 ** Name: right_fix_x Type: Displacement/Rotation
-*Boundary
-right_fix_x, 1, 1
+** *Boundary
+** right_fix_x, 1, 1
 ** 
 ** LOADS
 ** 
 ** Name: y_load   Type: Surface traction
-*Dsload
+*Dsload, follower=NO
 y_load_face, TRVEC, 800., 0., 1., 0.
 ** 
 ** OUTPUT REQUESTS
