@@ -29,14 +29,14 @@ if __name__ == "__main__":
         material = Linear_isotropic_planeStrain(modulus=inp.materials["Elastic"][0], 
                                                 poisson_ratio=inp.materials["Elastic"][1])
 
-    equationSystem = System_of_equations(body, material)
+    equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
-    equationSystem.solve(inp, show_newton_steps=True, save2path=inpPath+inpName)
+    equationSystem.solve(inp, show_newton_steps=True, save2path=None)  # save2path=inpPath+inpName)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
 
     ### show the body by mises stress
     equationSystem.compute_strain_stress() 
-    stress = equationSystem.body.mises_stress.to_numpy()
+    stress = equationSystem.mises_stress.to_numpy()
     print("\033[35;1m maximum mises_stress = {} MPa \033[0m".format(stress.max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     windowLength = 512
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         "stress index = "
     )))
     stress_id = {0: (0, 0), 1: (1, 1), 2: (0, 1)}[stress_id]
-    stress = equationSystem.body.cauchy_stress.to_numpy()[:, :, stress_id[0], stress_id[1]]
+    stress = equationSystem.cauchy_stress.to_numpy()[:, :, stress_id[0], stress_id[1]]
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))

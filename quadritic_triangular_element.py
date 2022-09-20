@@ -89,6 +89,11 @@ class Quadritic_triangular_element(object):
                                 ((1, 4), (4, 2)), 
                                 ((2, 5), (5, 0))]
 
+        """the nearest gauss point for each vertex, this is for mesh visualization, 
+           where we can define color-per-vertex"""
+        self.vertex_nearest_gaussPoint = ti.field(ti.i32, shape=(3))
+        self.vertex_nearest_gaussPoint.from_numpy(np.array([1, 2, 0]))
+
 
     @ti.func
     def shapeFunc(self, natCoo):  

@@ -32,6 +32,24 @@ def field_abs_max(f: ti.template()) -> float:
     return ans
 
 
+@ti.kernel 
+def field_max(f: ti.template()) -> float:
+    """get the max value of a scaler field"""
+    ans = -float("inf")
+    for I in ti.grouped(f):
+        ti.atomic_max(ans, f[I])
+    return ans
+
+
+@ti.kernel 
+def field_min(f: ti.template()) -> float:
+    """get the min value of a scaler field"""
+    ans = float("inf")
+    for I in ti.grouped(f):
+        ti.atomic_min(ans, f[I])
+    return ans
+
+
 @ti.kernel
 def field_multiply(field: ti.template(), num: float):
     for i in field:

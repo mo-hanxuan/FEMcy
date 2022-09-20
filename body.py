@@ -30,6 +30,11 @@ class Body:
             self.ELE = Linear_triangular_element(); print("\033[32;1m Linear_triangular_element is used \033[0m")
         elif self.np_elements.shape[1] == 6:
             self.ELE = Quadritic_triangular_element(); print("\033[32;1m Quadritic_triangular_element is used \033[0m")
+        
+        ### the variables for visualization
+        self.mesh = ti.Vector.field(3, ti.f32, shape=(self.elements.shape[0] * self.elements[0].n))  # store vertex coordinates of the mesh, similar to .stl format
+        self.vertex_val = ti.field(ti.f64, shape=(self.elements.shape[0] * self.elements[0].n))
+        self.vertex_color = ti.Vector.field(3, ti.f32, shape=(self.elements.shape[0] * self.elements[0].n))
     
 
     def get_surfaceEdges(self, redo=False):
@@ -82,7 +87,7 @@ class Body:
             field_max, field_min = field.max(), field.min()
             field_colors = np.zeros(field.shape[0], dtype=np.int32)
             for i in range(len(field)):
-                red, green, blue = getColor((field[i] - field_min) / (field_max - field_min))
+                red, green, blue = getColor((field[i] - field_min) / (field_max - field_min + 1.e-30))
                 field_colors[i] = int("0x{:02x}{:02x}{:02x}".format(
                                       int(255 * red), int(255 * green), int(255 * blue)), base=16)
         else:
@@ -95,7 +100,7 @@ class Body:
         gui.show(save2path)
     
 
-    def show(self, ):  ### currently, this is for 2d case
+    def show(self, window: ti.ui.Window, disp, vals, vertex_nearest_gaussPoint):  ### currently, this is for 2d case
 
         xmin = min(self.nodes[i][0] for i in range(self.nodes.shape[0]))
         xmax = max(self.nodes[i][0] for i in range(self.nodes.shape[0]))
@@ -110,38 +115,34 @@ class Body:
         stretchRatio = lengthScale / max(xmax - xmin, ymax - ymin) 
         light_distance = lengthScale / 25.
 
-        window = ti.ui.Window('show body', (windowLength, windowLength))
+        # window = ti.ui.Window('show body', (windowLength, windowLength))
         canvas = window.get_canvas()
 
-        ### if is a 2d object, then we change the node coords to 3d coords
-        if self.nodes[0].n == 2:
-            vertices_ = np.insert(self.nodes.to_numpy(), obj=2, values=-lengthScale, axis=1)  # insert z coordinate
-            vertices = ti.Vector.field(3, ti.f32, shape=self.nodes.shape)
-            vertices.from_numpy((vertices_ - center) * stretchRatio)  # put the body to the center and stretch it to fit the window
-            
-            indices = ti.field(ti.i32, shape=self.elements.shape[0] * 3)
-            indices.from_numpy(self.elements.to_numpy().reshape(-1))
+        ### update the mesh and get the vertex color
+        self.update_mesh(disp)
+        self.get_vertex_val(vals, vertex_nearest_gaussPoint)
+        self.get_vertex_color()
 
-            ### now we render it
-            def render():
-                scene = ti.ui.Scene()
-                camera = ti.ui.make_camera()
-                camera.position(0., 0., lengthScale)  # if camera is far away from the object, you can't see any thing
-                camera.lookat(0., 0., 0.)
-                camera.up(0., 1., 0.)
-                # camera.projection_mode(0)
-                scene.set_camera(camera)
-                scene.point_light(pos=(-light_distance, 0., light_distance), color=(0., 1., 0.))
-                scene.point_light(pos=(light_distance, 0., light_distance), color=(0., 1., 0.))
-                scene.ambient_light(color=(0.2, 0.2, 0.2))
-                scene.mesh(vertices=vertices, indices=indices, two_sided=True, show_wireframe=True)
-                scene.particles(centers=vertices, radius=1.)
-                canvas.scene(scene)
+        ### now we render it
+        def render():
+            scene = ti.ui.Scene()
+            camera = ti.ui.Camera()
+            camera.position(center[0] * 2, 0., 0.1 * lengthScale)  # if camera is far away from the object, you can't see any thing
+            camera.lookat(center[0], center[1] * 2, center[2])
+            camera.up(0., 1., 0.)
+            # camera.projection_mode(0)
+            scene.set_camera(camera)
+            scene.point_light(pos=(-light_distance, 0., light_distance), color=(0.2, 0.2, 0.2))
+            scene.point_light(pos=(light_distance, 0., light_distance), color=(0.2, 0.2, 0.2))
+            scene.ambient_light(color=(0.2, 0.2, 0.2))
+            scene.mesh(vertices=self.mesh, per_vertex_color=self.vertex_color)
+            # scene.particles(centers=vertices, radius=1.)
+            canvas.scene(scene)
 
-            ### show the window
-            while True:
-                render()
-                window.show()
+        ### show the window
+        # while True:
+        render()
+        window.show()
     
 
     def get_nodeEles(self, redo=False):
@@ -214,6 +215,66 @@ class Body:
                     boundaryNodes.add(node)
             self.boundaryNodes = boundaryNodes
         return self.boundary
+    
+
+    @ti.kernel 
+    def init_mesh(self, ):
+        elements, nodes, mesh = ti.static(self.elements, self.nodes, self.mesh)
+        for ele in elements:
+            for i in range(elements[ele].n):
+                node = elements[ele][i]
+                mesh[ele * elements[0].n + i][:nodes[node].n] = nodes[node][:nodes[node].n]
+
+
+    @ti.kernel 
+    def update_mesh(self, disp: ti.template()):
+        elements, nodes, mesh = ti.static(self.elements, self.nodes, self.mesh)
+        for ele in elements:
+            for i in range(elements[ele].n):
+                node = elements[ele][i]
+                for j in range(nodes[node].n):
+                    mesh[ele * elements[0].n + i][j] = \
+                        nodes[node][j] + disp[node * nodes[0].n + j]
+
+
+    @ti.kernel
+    def get_vertex_val(self, vals: ti.template(), vertex_nearest_gaussPoint: ti.template()):
+        elements, vertex_val = ti.static(self.elements, self.vertex_val)
+        for vertex in vertex_val:
+            ele = vertex // elements[0].n
+            i = vertex % elements[0].n
+            igp = vertex_nearest_gaussPoint[i]
+            vertex_val[vertex] = vals[ele, igp]
+    
+
+    def get_vertex_color(self, minVal_input:float=None, maxVal_input:float=None):
+        ### get the min and max val
+        minVal = tiMath.field_min(self.vertex_val) if minVal_input == None else minVal_input
+        maxVal = tiMath.field_max(self.vertex_val) if maxVal_input == None else maxVal_input
+        ### get the color of each vertex
+        self.get_vertex_color_kernel(minVal, maxVal)
+
+
+    @ti.kernel
+    def get_vertex_color_kernel(self, minVal: float, maxVal: float):
+        for vertex in self.vertex_val:
+            R, G, B = self.get_color_rainbow((self.vertex_val[vertex] - minVal) / (maxVal - minVal + 1.e-30))
+            self.vertex_color[vertex] = ti.Vector([R, G, B])
+
+
+    @ti.func 
+    def get_color_rainbow(self, x: float):
+        """input a val with 0 <= val <= 1, get the corresponding RGB color"""
+        red, green, blue = 0., 0., 0.
+        if x >= 0.75:
+            red = 1.; green = (1. - x) / 0.25; blue = 0.
+        elif 0.5 <= x < 0.75:
+            red = (x - 0.5) / 0.25; green = 1.; blue = 0.
+        elif 0.25 <= x < 0.5:
+            red = 0.; green = 1.; blue = (0.5 - x) / 0.25
+        else:
+            red = 0.; green = x / 0.25; blue = 1.
+        return red, green, blue
 
 
 if __name__ == "__main__":

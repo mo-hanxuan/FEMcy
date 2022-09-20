@@ -41,8 +41,9 @@ class System_of_equations:
         sparseMtrx: the sparse stiffness matrix utilized to solve the dofs
         rhs: right hand side of the equation system
     """
-    def __init__(self, body: Body, material):
+    def __init__(self, body: Body, material, geometric_nonlinear: bool):
         self.dm = body.dm  # spatial dimension of the system
+        self.geometric_nonlinear = geometric_nonlinear
         self.body = body
         self.elements, self.nodes = body.elements, body.nodes 
         
@@ -70,11 +71,7 @@ class System_of_equations:
         self.strain = ti.Matrix.field(self.dm, self.dm, ti.f64, 
                         shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0])) 
         self.mises_stress = ti.field(ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0])) 
-        self.Ee = ti.Matrix.field(self.dm, self.dm, ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))  
-        self.pk2 = ti.Matrix.field(3, 3, ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))  
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
 
         ### variables related to geometric nonlinear                              
         self.nodal_force = ti.field(ti.f64, shape=(self.dm * self.body.nodes.shape[0]))  
@@ -344,14 +341,14 @@ class System_of_equations:
                         js.add(j)
     
 
-    def solve_dof(self, geometric_nonlinear: bool=False):
-        if not geometric_nonlinear:
+    def solve_dof(self):
+        if not self.geometric_nonlinear:
             solver = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
         else:
             solver = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
         solver.solve()
 
-        if not geometric_nonlinear:
+        if not self.geometric_nonlinear:
             self.dof = solver.x
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
@@ -360,18 +357,15 @@ class System_of_equations:
         return solver
 
 
-    def compute_strain_stress(self, 
-                            for_visualize=True,  # define whether this operation is for visualization
-                            geometric_nonlinear: bool=False,
-                            ):
+    def compute_strain_stress(self, ):
         ### get the strain
         self.get_deformation_gradient()
-        if not geometric_nonlinear:
+        if not self.geometric_nonlinear:
             self.get_strain_smallDeformation()
         else:
             self.get_strain_largeDeformation()
         ### get the stress
-        if not geometric_nonlinear:
+        if not self.geometric_nonlinear:
             if isinstance(self.material, Linear_isotropic_planeStrain):
                 self.plane_strain_linear_constitutive(self.ELE.gaussPoints)
             elif isinstance(self.material, Linear_isotropic_planeStress):
@@ -420,8 +414,7 @@ class System_of_equations:
                 self.mises_stress[ele, igp] = (3./2. * (deviatoric_stress * deviatoric_stress).sum())**0.5
 
 
-    def impose_boundary_condition(self, boundary_conditions: dict, 
-                                  geometric_nonlinear: bool=False):
+    def impose_boundary_condition(self, boundary_conditions: dict):
         ### =========== apply the boundary condition ===========
         neumannBCs = boundary_conditions["neumannBCs"]
         dirichletBCs = boundary_conditions["dirichletBCs"]
@@ -437,7 +430,7 @@ class System_of_equations:
                                 load_val=neumannBC["traction"])
         
         ### then, apply Dirichlet BC
-        if geometric_nonlinear == False:
+        if self.geometric_nonlinear == False:
             for dirichletBC in dirichletBCs:
                 self.dirichletBC_linearEquations(
                         dirichletBC["node_set"], dirichletBC["dof"], 
@@ -527,9 +520,6 @@ class System_of_equations:
                 ### get the Green Strain, E
                 E = (F.transpose() @ F - eye) / 2.
 
-                ### just for visualization, delete latter
-                self.Ee[ele, igp] = E
-
                 ### get the PK2 stress
                 pk2_voigt = ddsdde[ele, igp] @ ti.Vector([E[0, 0], E[1, 1], 
                                                           E[0, 1] + E[1, 0]])
@@ -537,14 +527,8 @@ class System_of_equations:
                     [pk2_voigt[0], pk2_voigt[2]],
                     [pk2_voigt[2], pk2_voigt[1]]
                 ])
-                self.pk2[ele, igp][:self.dm, :self.dm] = pk2[:self.dm, :self.dm]  # just for visualization, delete later
-                ### get the Cauchy stress  cauchy_stress[ele, igp] = F @ pk2 @ F.transpose() / F.determinant()
+                ### get the Cauchy stress  
                 self.cauchy_stress[ele, igp] = F @ pk2 @ F.transpose() / F.determinant()
-                if (ele == 238 or ele == 0) and igp == 0:
-                    print("\033[31;1m cuachy_stress[{}, 0] = \n{}, {},\n{}, {} \033[0m".format(ele + 1, 
-                        self.cauchy_stress[ele, igp][0, 0], self.cauchy_stress[ele, igp][0, 1],
-                        self.cauchy_stress[ele, igp][1, 0], self.cauchy_stress[ele, igp][1, 1]
-                    ))
     
 
     @ti.kernel
@@ -553,7 +537,6 @@ class System_of_equations:
            get the stress of each integration point
            constitutive model of plane stress can 
            refer to https://www.comsol.com/blogs/what-is-the-difference-between-plane-stress-and-plane-strain """
-        body = self.body
         elements, nu = ti.static(self.elements, self.material.poisson_ratio)
         eye_3d = ti.Matrix([ 
             [1., 0., 0.],
@@ -572,9 +555,6 @@ class System_of_equations:
                 ### get the Green Strain, E
                 E = (F_3d.transpose() @ F_3d - eye_3d) / 2.
 
-                ### just for visualization, delete later
-                self.Ee[ele, igp][:self.dm, :self.dm] = E[:self.dm, :self.dm]
-
                 ### get the PK2 stress, voigt notation has been used here, 
                 ### modified later by different C at different gauss point
                 pk2_voigt = self.material.ti_C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
@@ -584,9 +564,8 @@ class System_of_equations:
                     [pk2_voigt[3], pk2_voigt[1], pk2_voigt[5]],
                     [pk2_voigt[4], pk2_voigt[5], pk2_voigt[2]]
                 ])
-                self.pk2[ele, igp] = pk2  # just for visualization, delete later
+
                 ### get the cauchy stress
-                # stress = F_3d @ pk2 @ F_3d.transpose() / F_3d.determinant()
                 stress = F_3d @ pk2 @ F_3d.transpose() / F_3d.determinant()
                 self.cauchy_stress[ele, igp][0:2, 0:2] = stress[0:2, 0:2]
     
@@ -759,7 +738,7 @@ class System_of_equations:
                     break
                 continue
             ### increast dt if fast convergence occurs in previous dt
-            if newton_loop <= 4:
+            if newton_loop <= 8:
                 self.dt = min(self.dt * 1.5, max_inc)
             a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
             self.time0 = self.time1
@@ -776,8 +755,9 @@ class System_of_equations:
             residual = field_abs_max(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
-                time.sleep(1.)
-                self.compute_strain_stress(geometric_nonlinear)
+                self.compute_strain_stress()
+                # self.body.show(window, self.dof, self.mises_stress, 
+                #                self.ELE.vertex_nearest_gaussPoint)
                 field = self.mises_stress.to_numpy(dtype=np.float64)
                 self.body.show2d(gui, disp=self.dof, 
                                 field=field, 
@@ -792,6 +772,7 @@ class System_of_equations:
         if show_newton_steps and geometric_nonlinear:
             windowLength = 512
             gui = ti.GUI('show body', res=(windowLength, windowLength))
+            # window = ti.ui.Window('show body', (windowLength, windowLength))
 
         print("\033[32;1m now we begin to assemble the sparse matrix \033[0m")
         self.get_dsdx_and_vol()
@@ -799,10 +780,10 @@ class System_of_equations:
         print("\033[32;1m sparse matrix assembling is finished  \033[0m")
 
         ### impost boundary condition at the initial state
-        self.impose_boundary_condition(boundary_conditions, geometric_nonlinear)
+        self.impose_boundary_condition(boundary_conditions)
         
         if geometric_nonlinear == False:  # small deformation
-            self.solve_dof(geometric_nonlinear)
+            self.solve_dof()
             return True, 0
         
         else:  # large deformation, use newton method
@@ -816,7 +797,9 @@ class System_of_equations:
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
             if show_newton_steps:
-                self.compute_strain_stress(geometric_nonlinear)
+                self.compute_strain_stress()
+                # self.body.show(window, self.dof, self.mises_stress, 
+                #                self.ELE.vertex_nearest_gaussPoint)
                 field = self.mises_stress.to_numpy(dtype=np.float64)
                 self.body.show2d(gui, disp=self.dof, 
                                  field=field, 
@@ -829,10 +812,10 @@ class System_of_equations:
                 while pre_residual / (self.ini_residual + 1.e-30) >= 0.01:  # not convergent
                     
                     newton_loop += 1
-                    if newton_loop >= 16:
+                    if newton_loop >= 24:
                         return False, newton_loop  # Newton's method has not converged
 
-                    solver = self.solve_dof(geometric_nonlinear=True)  # dofs = dofs - K^(-1) * residual
+                    solver = self.solve_dof()  # dofs = dofs - K^(-1) * residual
 
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
@@ -841,34 +824,20 @@ class System_of_equations:
                     residual = field_abs_max(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
-                        self.compute_strain_stress(geometric_nonlinear)
-                        field = self.cauchy_stress.to_numpy()
-                        print("Cauchy stress[242] = \n{}".format(self.cauchy_stress[241, 0]))
-                        print("Cauchy stress[239] = \n{}".format(self.cauchy_stress[238, 0]))
-                        print("Cauchy stress[1] = \n{}".format(self.cauchy_stress[0, 0]))
-                        pk2 = self.pk2.to_numpy()
-                        print("pk2[242] = \n{}".format(pk2[241, 0][:2, :2]))
-                        print("pk2[239] = \n{}".format(pk2[238, 0][:2, :2]))
-                        print("pk2[1] = \n{}".format(pk2[0, 0][:2, :2]))
-                        dfgrds = self.F.to_numpy()
-                        print("dfgrd[242] = \n{}".format(dfgrds[241, 0]))
-                        print("dfgrd[239] = \n{}".format(dfgrds[238, 0]))
-                        print("dfgrd[1] = \n{}".format(dfgrds[0, 0]))
-                        Ees = self.Ee.to_numpy()
-                        print("Ee[242] = \n{}".format(Ees[241, 0]))
-                        print("Ee[239] = \n{}".format(Ees[238, 0]))
-                        print("Ee[1] = \n{}".format(Ees[0, 0]))
+                        self.compute_strain_stress()
+                        # self.body.show(window, self.dof, self.mises_stress, 
+                        #                self.ELE.vertex_nearest_gaussPoint)
                         self.body.show2d(gui, disp=self.dof, 
                                         field = self.mises_stress.to_numpy(dtype=np.float64),
                                         save2path="{}_{}({}).png".format(save2path, self.time1, newton_loop) if save2path else None)
 
                     relax_loop = -1; relaxation = 1.
-                    while 0.5 * pre_residual < residual < pre_residual:  # Newton's step too small, you can directly go further
+                    relaxation = 1.  #  further_step_ratio
+                    while 0.1 * pre_residual < residual < pre_residual:  # Newton's step too small, you can directly go further
                         new_residual = residual
                         relax_loop += 1
-                        if relax_loop >= 32:
+                        if relax_loop >= 16:
                             break
-                        relaxation = 0.25  #  further_step_ratio
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
                         ### self.dof -= relaxation * solver.x
                         a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
@@ -876,12 +845,12 @@ class System_of_equations:
                         if residual > new_residual:
                             a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
                             residual = inside_relaxation()
-                            break
+                            relaxation *= 0.5
                     
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
                         relax_loop += 1
-                        if relax_loop >= 1:
+                        if relax_loop >= 2:
                             break
                         relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
@@ -909,7 +878,7 @@ if __name__ == "__main__":
         material = Linear_isotropic_planeStrain(modulus=inp.materials["Elastic"][0], 
                                                 poisson_ratio=inp.materials["Elastic"][1])
 
-    equationSystem = System_of_equations(body, material)
+    equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
     equationSystem.solve(inp)
     print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
@@ -918,6 +887,7 @@ if __name__ == "__main__":
     equationSystem.compute_strain_stress()
     stress = equationSystem.mises_stress.to_numpy()
     print("\033[35;1m maximum mises stress = {} MPa \033[0m".format(abs(stress).max()))
+    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     
     windowLength = 512
     gui = ti.GUI('show body', res=(windowLength, windowLength))

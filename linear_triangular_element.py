@@ -55,6 +55,11 @@ class Linear_triangular_element(object):
                                 ((1, 2), ), 
                                 ((2, 0), )]
 
+        """the nearest gauss point for each vertex, this is for mesh visualization, 
+           where we can define color-per-vertex"""
+        self.vertex_nearest_gaussPoint = ti.field(ti.i32, shape=(3))
+        self.vertex_nearest_gaussPoint.from_numpy(np.array([0, 0, 0]))
+
 
     @ti.func
     def shapeFunc(self, natCoo):  # triangle linear element
