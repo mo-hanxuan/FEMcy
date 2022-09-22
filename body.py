@@ -8,10 +8,10 @@ import tiMath
 from colorBar import getColor
 
 from readInp import Inp_info
-from linear_triangular_element import Linear_triangular_element
-from linear_tetrahedral_element import Linear_tetrahedral_element
-from quadratic_triangular_element import Quadratic_triangular_element
-from quadratic_tetrahedral_element import Quadratic_tetrahedral_element
+from element_linear_triangular import Element_linear_triangular
+from element_linear_tetrahedral import Element_linear_tetrahedral
+from element_quadratic_triangular import Element_quadratic_triangular
+from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
 
 
 @ti.data_oriented
@@ -27,13 +27,13 @@ class Body:
 
         ### must be modified latter (modified by using element type as key to get ELE)
         if self.np_elements.shape[1] == 3:
-            self.ELE = Linear_triangular_element(); print("\033[32;1m Linear_triangular_element is used \033[0m")
+            self.ELE = Element_linear_triangular(); print("\033[32;1m Element_linear_triangular is used \033[0m")
         elif self.np_elements.shape[1] == 6:
-            self.ELE = Quadratic_triangular_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+            self.ELE = Element_quadratic_triangular(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
         elif self.np_elements.shape[1] == 4:
-            self.ELE = Linear_tetrahedral_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+            self.ELE = Element_linear_tetrahedral(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
         elif self.np_elements.shape[1] == 10:
-            self.ELE = Quadratic_tetrahedral_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+            self.ELE = Element_quadratic_tetrahedral(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
 
         ### the variables for visualization
         mesh, face2ele, surfaces = self.ELE.get_mesh(self.np_elements)

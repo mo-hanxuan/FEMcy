@@ -7,9 +7,9 @@ import time; from typing import Tuple, Union
 from body import Body
 from readInp import *
 from material import *
-from linear_triangular_element import Linear_triangular_element
-from quadratic_triangular_element import Quadratic_triangular_element
-from linear_tetrahedral_element import Linear_tetrahedral_element
+from element_linear_triangular import Element_linear_triangular
+from element_quadratic_triangular import Element_quadratic_triangular
+from element_linear_tetrahedral import Element_linear_tetrahedral
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_abs_max, get_index_ti, vec_mul_voigtMtrx
 
@@ -38,13 +38,13 @@ class System_of_equations:
         
         ### define the element types of the body, must be modified latter!!!
         if body.np_elements.shape[1] == 3:
-            self.ELE = Linear_triangular_element()
+            self.ELE = Element_linear_triangular()
         elif body.np_elements.shape[1] == 6:
-            self.ELE = Quadratic_triangular_element()
+            self.ELE = Element_quadratic_triangular()
         elif body.np_elements.shape[1] == 4:
-            self.ELE = Linear_tetrahedral_element()
+            self.ELE = Element_linear_tetrahedral()
         elif body.np_elements.shape[1] == 10:
-            self.ELE = Quadratic_tetrahedral_element()
+            self.ELE = Element_quadratic_tetrahedral()
 
         ### deformation gradient
         self.F = ti.Matrix.field(self.dm, self.dm, ti.f64, 
@@ -352,11 +352,11 @@ class System_of_equations:
         ### get the stress
         if not self.geometric_nonlinear:
             if isinstance(self.material, Linear_isotropic_planeStrain):
-                self.plane_strain_linear_constitutive(self.ELE.gaussPoints)
+                self.constitutive_planeStrain_linear(self.ELE.gaussPoints)
             elif isinstance(self.material, Linear_isotropic_planeStress):
-                self.plane_stress_linear_constitutive(self.ELE.gaussPoints)
+                self.constitutive_planeStress_linear(self.ELE.gaussPoints)
             elif isinstance(self.material, Linear_isotropic):
-                self.infinitesimal_constitutive(self.ELE.gaussPoints)
+                self.constitutive_infinitesimal(self.ELE.gaussPoints)
         else:
             pass  # stress has been computed for geometric nonlinear case
         ### compute mises stress
@@ -504,7 +504,7 @@ class System_of_equations:
 
 
     @ti.kernel 
-    def pk2_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_pk2(self, gaussPoints: ti.template()):
         """constitutive use Green's strain and PK2 stress"""
         elements = ti.static(self.elements)
         eye = ti.Matrix([ 
@@ -534,7 +534,7 @@ class System_of_equations:
 
 
     @ti.kernel 
-    def infinitesimal_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_infinitesimal(self, gaussPoints: ti.template()):
         """constitutive use Green's strain and PK2 stress"""
         elements = ti.static(self.elements)
         eye = ti.Matrix([ 
@@ -561,7 +561,7 @@ class System_of_equations:
 
 
     @ti.kernel
-    def plane_strain_nonlinear_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_planeStrain_nonlinear(self, gaussPoints: ti.template()):
         """geometric nonlinear constitutive of plane strain,
            get the stress of each integration point 
            according to deformation gradient"""
@@ -589,7 +589,7 @@ class System_of_equations:
     
 
     @ti.kernel
-    def plane_stress_nonlinear_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_planeStress_nonlinear(self, gaussPoints: ti.template()):
         """geometric nonlinear constitutive of plane stress
            get the stress of each integration point
            constitutive model of plane stress can 
@@ -628,7 +628,7 @@ class System_of_equations:
     
 
     @ti.kernel
-    def plane_strain_linear_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_planeStrain_linear(self, gaussPoints: ti.template()):
         """linear constitutive of plane strain,
            get the stress of each integration point 
            according to deformation gradient"""
@@ -654,7 +654,7 @@ class System_of_equations:
 
 
     @ti.kernel
-    def plane_stress_linear_constitutive(self, gaussPoints: ti.template()):
+    def constitutive_planeStress_linear(self, gaussPoints: ti.template()):
         """linear constitutive of plane stress
            get the stress of each integration point
            constitutive model of plane stress can 
@@ -695,13 +695,13 @@ class System_of_equations:
         ### get all stresses at integration points by constitutive, modified latter by automatically change consititutive
         if isinstance(self.material, Linear_isotropic_planeStrain):
             self.get_deformation_gradient()
-            self.plane_strain_nonlinear_constitutive(self.ELE.gaussPoints)
+            self.constitutive_planeStrain_nonlinear(self.ELE.gaussPoints)
         elif isinstance(self.material, Linear_isotropic_planeStress):
             self.get_deformation_gradient()
-            self.plane_stress_nonlinear_constitutive(self.ELE.gaussPoints)
+            self.constitutive_planeStress_nonlinear(self.ELE.gaussPoints)
         elif isinstance(self.material, Linear_isotropic):
             self.get_deformation_gradient()
-            self.pk2_constitutive(self.ELE.gaussPoints)
+            self.constitutive_pk2(self.ELE.gaussPoints)
         else:
             print("\033[31;1m error! currently we only support these types of materials: "
                   "plane strain, plane stress and 3D linear elastic \033[0m")
@@ -776,7 +776,7 @@ class System_of_equations:
         ### whether show the body during time step and Newton's step
         if show_newton_steps and self.geometric_nonlinear:
             windowLength = 512
-            if not isinstance(self.ELE, Linear_triangular_element):
+            if not isinstance(self.ELE, Element_linear_triangular):
                 window = ti.ui.Window('show body', (windowLength, windowLength))
             else:
                 window = ti.GUI('show body', res=(windowLength, windowLength))
@@ -920,7 +920,7 @@ class System_of_equations:
 
     def show_window(self, window, save2path: str=None, newton_loop: int=0, relax_loop: int=0):
         self.compute_strain_stress()
-        if not isinstance(self.ELE, Linear_triangular_element):
+        if not isinstance(self.ELE, Element_linear_triangular):
             self.body.show(window, self.dof, self.mises_stress, 
                         self.ELE.vertex_nearest_gaussPoint)
         else: 

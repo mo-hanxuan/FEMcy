@@ -42,7 +42,7 @@ if __name__ == "__main__":
     print("\033[35;1m maximum mises_stress = {} MPa \033[0m".format(stress.max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     windowLength = 512
-    if not isinstance(equationSystem.ELE, Linear_triangular_element):  # situation when using 3D-GUI
+    if not isinstance(equationSystem.ELE, Element_linear_triangular):  # situation when using 3D-GUI
         window = ti.ui.Window('Mises stress', (windowLength, windowLength))
         while window.running:
             equationSystem.body.show(window, equationSystem.dof, equationSystem.mises_stress, 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     
-    if not isinstance(equationSystem.ELE, Linear_triangular_element):  # situation when using 3D-GUI
+    if not isinstance(equationSystem.ELE, Element_linear_triangular):  # situation when using 3D-GUI
         window.destroy()
         window = ti.ui.Window('stress[{}, {}]'.format(*stress_id), (windowLength, windowLength))
         scalerField_from_matrixField(equationSystem.visualize_field, equationSystem.cauchy_stress, *stress_id)

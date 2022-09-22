@@ -5,10 +5,10 @@
 import numpy as np
 import taichi as ti
 import os; import copy; import sys
-from linear_tetrahedral_element import Linear_tetrahedral_element
-from linear_triangular_element import Linear_triangular_element
-from quadratic_tetrahedral_element import Quadratic_tetrahedral_element
-from quadratic_triangular_element import Quadratic_triangular_element
+from element_linear_tetrahedral import Element_linear_tetrahedral
+from element_linear_triangular import Element_linear_triangular
+from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
+from element_quadratic_triangular import Element_quadratic_triangular
 
 
 class Inp_info(object):
@@ -189,9 +189,9 @@ class Inp_info(object):
         
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
-        ele_types = {"CPE3": Linear_triangular_element, "CPS3": Linear_triangular_element,
-                    "CPS6": Quadratic_triangular_element, "CPE6": Quadratic_triangular_element,
-                    "C3D4": Linear_tetrahedral_element, "C3D10": Quadratic_tetrahedral_element}
+        ele_types = {"CPE3": Element_linear_triangular, "CPS3": Element_linear_triangular,
+                    "CPS6": Element_quadratic_triangular, "CPE6": Element_quadratic_triangular,
+                    "C3D4": Element_linear_tetrahedral, "C3D10": Element_quadratic_tetrahedral}
         print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
         ele_type = list(eSets.keys())[0]
         ele = ele_types[ele_type]()
