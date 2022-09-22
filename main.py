@@ -1,10 +1,9 @@
 import taichi as ti
-import os
 from stiffnessMtrx import System_of_equations
 from readInp import *
 from material import *
 from body import Body
-from tiMath import field_abs_max
+from tiMath import field_abs_max, scalerField_from_matrixField
 
 
 if __name__ == "__main__":
@@ -28,6 +27,9 @@ if __name__ == "__main__":
     elif ele_type[0:3] == "CPE":
         material = Linear_isotropic_planeStrain(modulus=inp.materials["Elastic"][0], 
                                                 poisson_ratio=inp.materials["Elastic"][1])
+    elif ele_type[0:3] == "C3D":
+        material = Linear_isotropic(modulus=inp.materials["Elastic"][0], 
+                                    poisson_ratio=inp.materials["Elastic"][1])
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
@@ -40,13 +42,19 @@ if __name__ == "__main__":
     print("\033[35;1m maximum mises_stress = {} MPa \033[0m".format(stress.max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     windowLength = 512
-    gui = ti.GUI('mises stress', res=(windowLength, windowLength))
-    equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-                                field=stress, 
-                                save2path=inpPath+"MisesStress_{}.png".format(inpName))
-    while gui.running:
+    if not isinstance(equationSystem.ELE, Linear_triangular_element):  # situation when using 3D-GUI
+        window = ti.ui.Window('Mises stress', (windowLength, windowLength))
+        while window.running:
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.mises_stress, 
+                            equationSystem.ELE.vertex_nearest_gaussPoint)
+    else:  # situation when using 2D-GUI
+        gui = ti.GUI('mises stress', res=(windowLength, windowLength))
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-                                   field=stress)
+                                    field=stress, 
+                                    save2path=inpPath+"MisesStress_{}.png".format(inpName))
+        while gui.running:
+            equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+                                    field=stress)
     
     ### show other stresses
     stress_id = int(input("\033[32;1m {} \033[0m".format(
@@ -58,10 +66,18 @@ if __name__ == "__main__":
     stress = equationSystem.cauchy_stress.to_numpy()[:, :, stress_id[0], stress_id[1]]
     print("\033[35;1m maximum stress[{}] = {} MPa \033[0m".format(stress_id, abs(stress).max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
-    gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
-
-    equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-        field=stress, save2path=inpPath+"stress{}_{}.png".format(stress_id, inpName))
-    while gui.running:
+    
+    if not isinstance(equationSystem.ELE, Linear_triangular_element):  # situation when using 3D-GUI
+        window.destroy()
+        window = ti.ui.Window('stress[{}, {}]'.format(*stress_id), (windowLength, windowLength))
+        scalerField_from_matrixField(equationSystem.visualize_field, equationSystem.cauchy_stress, *stress_id)
+        while window.running:
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.visualize_field, 
+                            equationSystem.ELE.vertex_nearest_gaussPoint)
+    else: 
+        gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
-                                   field=stress)
+            field=stress, save2path=inpPath+"stress{}_{}.png".format(stress_id, inpName))
+        while gui.running:
+            equationSystem.body.show2d(gui, disp=equationSystem.dof, 
+                                    field=stress)

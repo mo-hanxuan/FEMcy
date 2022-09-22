@@ -9,7 +9,9 @@ from colorBar import getColor
 
 from readInp import Inp_info
 from linear_triangular_element import Linear_triangular_element
-from quadritic_triangular_element import Quadritic_triangular_element
+from linear_tetrahedral_element import Linear_tetrahedral_element
+from quadratic_triangular_element import Quadratic_triangular_element
+from quadratic_tetrahedral_element import Quadratic_tetrahedral_element
 
 
 @ti.data_oriented
@@ -20,21 +22,30 @@ class Body:
         self.nodes.from_numpy(nodes)
         self.elements.from_numpy(elements)
         self.np_nodes = nodes; self.np_elements = elements
-        # print("\033[35;1m self.nodes = {} \033[0m".format(self.nodes))
-        # print("\033[32;1m self.elements = {} \033[0m".format(self.elements))
         self.dm = self.nodes[0].n
         self.disp = ti.Vector.field(len(self.nodes[0]), ti.f64, shape=(len(nodes), ), needs_grad=True)
 
-        ### must be modified latter
+        ### must be modified latter (modified by using element type as key to get ELE)
         if self.np_elements.shape[1] == 3:
             self.ELE = Linear_triangular_element(); print("\033[32;1m Linear_triangular_element is used \033[0m")
         elif self.np_elements.shape[1] == 6:
-            self.ELE = Quadritic_triangular_element(); print("\033[32;1m Quadritic_triangular_element is used \033[0m")
-        
+            self.ELE = Quadratic_triangular_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+        elif self.np_elements.shape[1] == 4:
+            self.ELE = Linear_tetrahedral_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+        elif self.np_elements.shape[1] == 10:
+            self.ELE = Quadratic_tetrahedral_element(); print("\033[32;1m Quadratic_triangular_element is used \033[0m")
+
         ### the variables for visualization
-        self.mesh = ti.Vector.field(3, ti.f32, shape=(self.elements.shape[0] * self.elements[0].n))  # store vertex coordinates of the mesh, similar to .stl format
-        self.vertex_val = ti.field(ti.f64, shape=(self.elements.shape[0] * self.elements[0].n))
-        self.vertex_color = ti.Vector.field(3, ti.f32, shape=(self.elements.shape[0] * self.elements[0].n))
+        mesh, face2ele, surfaces = self.ELE.get_mesh(self.np_elements)
+        self.mesh_id = ti.field(ti.i32, shape=(surfaces.shape[0] * surfaces.shape[1])); self.mesh_id.from_numpy(surfaces.reshape(-1))
+        self.mesh = ti.Vector.field(3, ti.f32, shape=(surfaces.shape[0] * surfaces.shape[1]))  # store vertex coordinates of the mesh, similar to .stl format
+        mesh2ele = np.zeros(surfaces.shape[0] * surfaces.shape[1], dtype=np.int64)
+        for i in range(len(surfaces)):
+            for j in range(len(surfaces[i])):
+                mesh2ele[i * len(surfaces[0]) + j] = list(face2ele[tuple(surfaces[i])])[0]
+        self.mesh2ele = ti.field(ti.i32, shape=(surfaces.shape[0] * surfaces.shape[1],)); self.mesh2ele.from_numpy(mesh2ele)
+        self.vertex_val = ti.field(ti.f64, shape=(surfaces.shape[0] * surfaces.shape[1]))
+        self.vertex_color = ti.Vector.field(3, ti.f32, shape=(surfaces.shape[0] * surfaces.shape[1]))
     
 
     def get_surfaceEdges(self, redo=False):
@@ -56,21 +67,21 @@ class Body:
         else:
             nodes = self.np_nodes
 
-        xmin = min(nodes[i][0] for i in range(self.nodes.shape[0]))
-        xmax = max(nodes[i][0] for i in range(self.nodes.shape[0]))
-        ymin = min(nodes[i][1] for i in range(self.nodes.shape[0]))
-        ymax = max(nodes[i][1] for i in range(self.nodes.shape[0]))
-        bottomleft = np.array([xmin, ymin])
-
-        # lengthScale is the length of the body after 
-        # stretch its size to match the window, 
-        # can not be too large otherwise your camera will be out of the scene box
-        lengthScale = 1.
-        stretchRatio = lengthScale / max(xmax - xmin, ymax - ymin) 
-
+        if not hasattr(self, "stretchRatio"):
+            xmin = min(nodes[i][0] for i in range(self.nodes.shape[0]))
+            xmax = max(nodes[i][0] for i in range(self.nodes.shape[0]))
+            ymin = min(nodes[i][1] for i in range(self.nodes.shape[0]))
+            ymax = max(nodes[i][1] for i in range(self.nodes.shape[0]))
+            self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
+            """ lengthScale is the length of the body after 
+                stretch its size to match the window, 
+                can not be too large otherwise your camera will be out of the scene box"""
+            lengthScale = 1.
+            self.stretchRatio = lengthScale / max(xmax - xmin, ymax - ymin) / 1.25  # divided by 1.25 is to save some space for deformation
+        
+        bottomleft = np.array([self.xmin, self.ymin])
         a, b, c, line0, line1 = self.ELE.show_triangles_2d(self.np_elements, nodes, self.surfaceEdges,
-                                                           bottomleft, stretchRatio)
-
+                                                           bottomleft, self.stretchRatio)
         ### get the color
         if len(field) >= 1:
             field = field.reshape(-1)
@@ -102,24 +113,29 @@ class Body:
 
     def show(self, window: ti.ui.Window, disp, vals, vertex_nearest_gaussPoint):  ### currently, this is for 2d case
 
-        xmin = min(self.nodes[i][0] for i in range(self.nodes.shape[0]))
-        xmax = max(self.nodes[i][0] for i in range(self.nodes.shape[0]))
-        ymin = min(self.nodes[i][1] for i in range(self.nodes.shape[0]))
-        ymax = max(self.nodes[i][1] for i in range(self.nodes.shape[0]))
-        center = [(xmin + xmax) / 2., (ymin + ymax) / 2., 0.]
-
         windowLength = 1024
         lengthScale = min(windowLength, 512)  # lengthScale is the length of the body after 
                                               # stretch its size to match the window, 
                                               # can not be too large otherwise your camera will be out of the scene box
-        stretchRatio = lengthScale / max(xmax - xmin, ymax - ymin) 
         light_distance = lengthScale / 25.
+        
+        if not hasattr(self, "visualizeRatio"):
+            xmin = min(self.nodes[i][0] for i in range(self.nodes.shape[0]))
+            xmax = max(self.nodes[i][0] for i in range(self.nodes.shape[0]))
+            ymin = min(self.nodes[i][1] for i in range(self.nodes.shape[0]))
+            ymax = max(self.nodes[i][1] for i in range(self.nodes.shape[0]))
+            visualizeRatio = lengthScale / max(xmax - xmin, ymax - ymin) / 10.
+            self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
+            self.visualizeRatio = visualizeRatio
+        
+        center = np.array([(self.xmin + self.xmax) / 2., (self.ymin + self.ymax) / 2., 0.]) * self.visualizeRatio
+        length = max(self.xmax - self.xmin, self.ymax - self.ymin)
 
         # window = ti.ui.Window('show body', (windowLength, windowLength))
         canvas = window.get_canvas()
 
         ### update the mesh and get the vertex color
-        self.update_mesh(disp)
+        self.update_mesh(disp, self.visualizeRatio)
         self.get_vertex_val(vals, vertex_nearest_gaussPoint)
         self.get_vertex_color()
 
@@ -127,20 +143,19 @@ class Body:
         def render():
             scene = ti.ui.Scene()
             camera = ti.ui.Camera()
-            camera.position(center[0] * 2, 0., 0.1 * lengthScale)  # if camera is far away from the object, you can't see any thing
-            camera.lookat(center[0], center[1] * 2, center[2])
+            camera.position(center[0], center[1] + 0.1 * length, 100.)  # if camera is far away from the object, you can't see any thing
+            camera.lookat(center[0], center[1] + 0.1 * length, center[2])
             camera.up(0., 1., 0.)
-            # camera.projection_mode(0)
+            # if self.dm == 2: camera.projection_mode(1)
+            # elif self.dm == 3: camera.projection_mode(0)
             scene.set_camera(camera)
-            scene.point_light(pos=(-light_distance, 0., light_distance), color=(0.2, 0.2, 0.2))
-            scene.point_light(pos=(light_distance, 0., light_distance), color=(0.2, 0.2, 0.2))
-            scene.ambient_light(color=(0.2, 0.2, 0.2))
-            scene.mesh(vertices=self.mesh, per_vertex_color=self.vertex_color)
-            # scene.particles(centers=vertices, radius=1.)
+            scene.point_light(pos=(-light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
+            scene.point_light(pos=(light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
+            scene.ambient_light(color=(0.5, 0.5, 0.5))
+            scene.mesh(vertices=self.mesh, per_vertex_color=self.vertex_color, two_sided=True)
             canvas.scene(scene)
-
+            
         ### show the window
-        # while True:
         render()
         window.show()
     
@@ -227,23 +242,22 @@ class Body:
 
 
     @ti.kernel 
-    def update_mesh(self, disp: ti.template()):
-        elements, nodes, mesh = ti.static(self.elements, self.nodes, self.mesh)
-        for ele in elements:
-            for i in range(elements[ele].n):
-                node = elements[ele][i]
-                for j in range(nodes[node].n):
-                    mesh[ele * elements[0].n + i][j] = \
-                        nodes[node][j] + disp[node * nodes[0].n + j]
+    def update_mesh(self, disp: ti.template(), visualizeRatio: float):
+        nodes = ti.static(self.nodes)
+        for i in self.mesh_id:
+            node = self.mesh_id[i]
+            for j in range(nodes[node].n):
+                self.mesh[i][j] = nodes[node][j] + disp[node * nodes[0].n + j]
+                self.mesh[i][j] *= visualizeRatio
 
 
     @ti.kernel
     def get_vertex_val(self, vals: ti.template(), vertex_nearest_gaussPoint: ti.template()):
         elements, vertex_val = ti.static(self.elements, self.vertex_val)
         for vertex in vertex_val:
-            ele = vertex // elements[0].n
-            i = vertex % elements[0].n
-            igp = vertex_nearest_gaussPoint[i]
+            ele = self.mesh2ele[vertex]
+            local_i = tiMath.get_index_ti(elements[ele], vertex)
+            igp = vertex_nearest_gaussPoint[local_i]
             vertex_val[vertex] = vals[ele, igp]
     
 
@@ -279,13 +293,12 @@ class Body:
 
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
-    fileName = input("\033[32;1m please give the oofem format's "
+    fileName = input("\033[32;1m please give the "
                      "input file path and name: \033[0m")
-    ### for example, fileName = D:\FEM\cases\concrete_3point\by_oofem\concrete_3point.in
 
     inp = Inp_info(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
 
     # body.show()
-    body.show2d()
+    # body.show2d()

@@ -87,6 +87,13 @@ def get_index_ti(arr, val) -> int:
     return index
 
 
+@ti.kernel 
+def scalerField_from_matrixField(f1: ti.template(), f2: ti.template(), i: int, j: int):
+    """fill the scaler field with index [i, j] of a matrix field"""
+    for I in ti.grouped(f1):
+        f1[I] = f2[I][i, j]
+
+
 def fraction_reduction(a: int, b: int):
     """fraction a/b is reduced by x/y
        https://blog.csdn.net/Cosmos53/article/details/116330862 """
@@ -105,6 +112,42 @@ def relative_error(a, b):
         return abs(a - b) / maxVal  # return relative error
     else:
         return abs(a - b)  # return absolute error if a and b are almost 0
+
+
+@ti.func
+def vec_mul_voigtMtrx(vec, mtrx):  # vector (line of a matrix) multiply voigt matrix
+    """
+    dot product of vector and voigt matrix
+    for 2-dimension
+        matrix = [
+            [mtrx[0], mtrx[2]],
+            [mtrx[2], mtrx[1]]
+        ]
+        thus, vec * matrix = [
+            vec[0] * mtrx[0, :] + vec[1] * mtrx[2, :], 
+            vec[0] * mtrx[2, :] + vec[1] * mtrx[1, :], 
+        ]
+    for 3-dimension
+        matrix = [
+            [mtrx[0], mtrx[3], mtrx[4]],
+            [mtrx[3], mtrx[1], mtrx[5]],
+            [mtrx[4], mtrx[5], mtrx[2]],
+        ]
+        thus, vec * matrix = [
+            vec[0] * mtrx[0, :] + vec[1] * mtrx[3, :] + vec[2] * mtrx[4, :], 
+            vec[0] * mtrx[3, :] + vec[1] * mtrx[1, :] + vec[2] * mtrx[5, :], 
+            vec[0] * mtrx[4, :] + vec[1] * mtrx[5, :] + vec[2] * mtrx[2, :], 
+        ]
+    """
+    ans = ti.Matrix([[0. for _ in range(mtrx.m)] for _ in range(vec.m)])
+    if vec.m == 2:
+        ans[0, :] = vec[0] * mtrx[0, :] + vec[1] * mtrx[2, :]
+        ans[1, :] = vec[0] * mtrx[2, :] + vec[1] * mtrx[1, :]
+    elif vec.m == 3:
+        ans[0, :] = vec[0] * mtrx[0, :] + vec[1] * mtrx[3, :] + vec[2] * mtrx[4, :]
+        ans[1, :] = vec[0] * mtrx[3, :] + vec[1] * mtrx[1, :] + vec[2] * mtrx[5, :]
+        ans[2, :] = vec[0] * mtrx[4, :] + vec[1] * mtrx[5, :] + vec[2] * mtrx[2, :]
+    return ans
 
 
 if __name__ == "__main__":

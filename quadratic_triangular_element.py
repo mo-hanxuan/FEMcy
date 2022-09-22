@@ -16,7 +16,7 @@ some variables and functions related to quadratic triangular elements
     |
     ---> ξ 
 """
-class Quadritic_triangular_element(object):
+class Quadratic_triangular_element(object):
     def __init__(self, gauss_points_count=3):
         self.dm = 2  # spatial dimension for triangular element
 
@@ -56,12 +56,12 @@ class Quadritic_triangular_element(object):
         ###     keys: tuple(id1, id2), use sorted tuple for convenience
         ###     values: natural coodinates of different Gauss points
         self.facet_natural_coos = {
-            (0, 3): [[0.75, 0.25], ],  # only one gauss points for each facet
-            (1, 3): [[0.25, 0.75], ],
-            (1, 4): [[0., 0.75], ],
-            (2, 4): [[0., 0.25], ],
-            (2, 5): [[0.25, 0.], ],
-            (0, 5): [[0.75, 0.], ],
+            (0, 3): [[0.5, 0.5], ],  # only one gauss points for each facet
+            (1, 3): [[0.5, 0.5], ],
+            (1, 4): [[0., 0.5], ],
+            (2, 4): [[0., 0.5], ],
+            (2, 5): [[0.5, 0.], ],
+            (0, 5): [[0.5, 0.], ],
         }
         self.facet_gauss_weights = {
             (0, 3): [1., ],  # only one gauss points for each facet
@@ -283,6 +283,40 @@ class Quadritic_triangular_element(object):
         return a, b, c, line0, line1
 
 
+    def get_mesh(self, elements: np.ndarray):
+        """get the triangles of the mesh, and the outer surface of the mesh
+           return: 
+                mesh: a int array of shape (3 * #triangles), which indicate
+                    the vertex indices of the triangles. 
+                face2ele: a dict with keys for face (sorted tuple), 
+                    and values of set of elements sharing this face
+                surfaces: the triangle surface that you want to visualize, 
+                    if for 2d case, you can just let all triangles to be the surface
+        """
+        mesh = set()
+        face2ele = {}  # from face to element
+        for iele, ele in enumerate(elements):
+            faces = [ 
+                (ele[0], ele[3], ele[5]), (ele[1], ele[3], ele[4]),
+                (ele[2], ele[4], ele[5]), (ele[3], ele[4], ele[5]),
+            ]
+            faces = list(map(lambda face: tuple(sorted(face)), faces))
+            for face in faces:
+                mesh.add(face)
+                if face in face2ele:
+                    face2ele[face].add(iele)
+                else:
+                    face2ele[face] = {iele}
+        ### get the surface mesh
+        surfaces = set()
+        for face in face2ele:
+            if len(face2ele[face]) == 1:
+                surfaces.add(face)
+        
+        mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
+        return mesh, face2ele, surfaces
+
+
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
 
@@ -296,7 +330,7 @@ if __name__ == "__main__":
         [16, 1]
     ])
 
-    ELE = Quadritic_triangular_element()
+    ELE = Quadratic_triangular_element()
 
     print("element_triangle_linear.global_normal(nodes, [0, 3]) = ", 
           ELE.global_normal(nodes, [0, 3]))

@@ -80,3 +80,34 @@ class Linear_isotropic_planeStrain:
 
         self.C = C; self.ti_C = ti_C
         self.C_6x6 = C_6x6; self.ti_C_6x6 = ti_C_6x6
+
+
+class Linear_isotropic:  # linear isotropic material for 3d case
+    def __init__(self, modulus: float, poisson_ratio: float):
+        self.modulus = modulus; self.poisson_ratio = nu = poisson_ratio
+        self.dm = 3  # dimension
+        self.G = G = modulus / 2. / (1. + nu)  # shear modulus
+        c00 = modulus * (1. - nu) / (1. + nu) / (1. - 2. * nu)
+        c01 = modulus * nu / (1. + nu) / (1. - 2. * nu)
+
+        """the elastic tensor for linear isotropic material is refered to 
+           https://help.solidworks.com/2010/English/SolidWorks/cworks/LegacyHelp/Simulation/Materials/Material_models/Linear_Elastic_Isotropic_Model.htm#:~:text=A%20material%20is%20said%20to,expansion%2C%20thermal%20conductivity%2C%20etc."""
+        C_6x6 = np.array([  # voigt notation is related here
+            [c00, c01, c01, 0., 0., 0.],  # sigma x
+            [c01, c00, c01, 0., 0., 0.],  # sigma y
+            [c01, c01, c00, 0., 0., 0.],  # sigma z
+            [0.,  0.,  0.,  G , 0., 0.],  # tau xy
+            [0.,  0.,  0.,  0., G , 0.],  # tau zx
+            [0.,  0.,  0.,  0., 0., G ],  # tau yz
+        ])
+        ti_C_6x6 = ti.Matrix([  # voigt notation is related here
+            [c00, c01, c01, 0., 0., 0.],  # sigma x
+            [c01, c00, c01, 0., 0., 0.],  # sigma y
+            [c01, c01, c00, 0., 0., 0.],  # sigma z
+            [0.,  0.,  0.,  G , 0., 0.],  # tau xy
+            [0.,  0.,  0.,  0., G , 0.],  # tau zx
+            [0.,  0.,  0.,  0., 0., G ],  # tau yz
+        ], ti.f64)
+
+        self.C = C_6x6
+        self.ti_C = ti_C_6x6

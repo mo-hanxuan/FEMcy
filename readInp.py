@@ -4,9 +4,11 @@
 """
 import numpy as np
 import taichi as ti
-import os; import copy
+import os; import copy; import sys
+from linear_tetrahedral_element import Linear_tetrahedral_element
 from linear_triangular_element import Linear_triangular_element
-from quadritic_triangular_element import Quadritic_triangular_element
+from quadratic_tetrahedral_element import Quadratic_tetrahedral_element
+from quadratic_triangular_element import Quadratic_triangular_element
 
 
 class Inp_info(object):
@@ -35,8 +37,7 @@ class Inp_info(object):
         with open(fileName, 'r') as file:
             for line in file:
                 if '*' in line:
-                    if cout:
-                        break
+                    if cout: break
                 
                 if cout:
                     data = line.split(',')
@@ -52,8 +53,7 @@ class Inp_info(object):
         with open(fileName, 'r') as file:
             for line in file:
                 if '*' in line:
-                    if cout:
-                        cout = False
+                    cout = False
                 
                 if cout:
                     data = line[:-1].rstrip().rstrip(',')
@@ -64,7 +64,7 @@ class Inp_info(object):
                     text[currentType].extend(tex)
                 
                 if '*ELEMENT' in line or '*Element' in line or '*element' in line:
-                    for type_ in ["C3D8", "C3D20", "3D4", "C3D10", "B31", "C3D6", 
+                    for type_ in ["C3D8", "C3D20", "C3D4", "C3D10", "B31", "C3D6", 
                                 "CPS3", "CPE3", 
                                 "CPS6", "CPE6"]:  # the surported element types
                         if ("TYPE=" in line or "type=" in line) and type_ in line:
@@ -86,12 +86,12 @@ class Inp_info(object):
             elif eType == "C3D20":
                 elements = elements.reshape((-1, 21))
                 elements = elements[:, 1:9]
-            elif eType == "3D4":
+            elif eType == "C3D4":
                 elements = elements.reshape((-1, 5))
                 elements = elements[:, 1:]
             elif eType == "C3D10":
                 elements = elements.reshape((-1, 11))
-                elements = elements[:, 1:5]
+                elements = elements[:, 1:11]
             elif eType == "B31":
                 elements = elements.reshape((-1, 3))
                 elements = elements[:, 1:]
@@ -104,6 +104,9 @@ class Inp_info(object):
             elif eType == "CPS6" or eType == "CPE6":
                     elements = elements.reshape((-1, 7))
                     elements = elements[:, 1:]
+            else:
+                print("\033[31;1m Error, element type {} is not found! \033[0m".format(eType))
+                sys.exit(1)
             eSets[eType] = elements
         
         ### transform the dictionary to np.ndarray, so that all index starts with 0
@@ -187,7 +190,8 @@ class Inp_info(object):
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
         ele_types = {"CPE3": Linear_triangular_element, "CPS3": Linear_triangular_element,
-                    "CPS6": Quadritic_triangular_element, "CPE6": Quadritic_triangular_element}
+                    "CPS6": Quadratic_triangular_element, "CPE6": Quadratic_triangular_element,
+                    "C3D4": Linear_tetrahedral_element, "C3D10": Quadratic_tetrahedral_element}
         print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
         ele_type = list(eSets.keys())[0]
         ele = ele_types[ele_type]()

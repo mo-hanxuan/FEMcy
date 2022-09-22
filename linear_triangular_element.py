@@ -199,6 +199,39 @@ class Linear_triangular_element(object):
         return a, b, c, line0, line1
 
 
+    def get_mesh(self, elements: np.ndarray):
+        """get the triangles of the mesh, and the outer surface of the mesh
+           return: 
+                mesh: a int array of shape (3 * #triangles), which indicate
+                    the vertex indices of the triangles. 
+                face2ele: a dict with keys for face (sorted tuple), 
+                    and values of set of elements sharing this face
+                surfaces: the triangle surface that you want to visualize, 
+                    if for 2d case, you can just let all triangles to be the surface
+        """
+        mesh = set()
+        face2ele = {}  # from face to element
+        for iele, ele in enumerate(elements):
+            faces = [ 
+                (ele[0], ele[1], ele[2]), 
+            ]
+            faces = list(map(lambda face: tuple(sorted(face)), faces))
+            for face in faces:
+                mesh.add(face)
+                if face in face2ele:
+                    face2ele[face].add(iele)
+                else:
+                    face2ele[face] = {iele}
+        ### get the surface mesh
+        surfaces = set()
+        for face in face2ele:
+            if len(face2ele[face]) == 1:
+                surfaces.add(face)
+        
+        mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
+        return mesh, face2ele, surfaces
+
+
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
 
