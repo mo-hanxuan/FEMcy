@@ -16,7 +16,7 @@ some variables and functions related to quadratic triangular elements
     |
     ---> ξ 
 """
-class Quadratic_triangular_element(object):
+class Element_quadratic_triangular(object):
     def __init__(self, gauss_points_count=3):
         self.dm = 2  # spatial dimension for triangular element
 
@@ -330,7 +330,7 @@ if __name__ == "__main__":
         [16, 1]
     ])
 
-    ELE = Quadratic_triangular_element()
+    ELE = Element_quadratic_triangular()
 
     print("element_triangle_linear.global_normal(nodes, [0, 3]) = ", 
           ELE.global_normal(nodes, [0, 3]))

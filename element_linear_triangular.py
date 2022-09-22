@@ -14,7 +14,7 @@ some variables and functions related to linear triangular elements
     ---> ξ 
 """
 @ti.data_oriented
-class Linear_triangular_element(object):
+class Element_linear_triangular(object):
     def __init__(self, ):
         self.dm = 2  # spatial dimension for triangular element
 
@@ -242,7 +242,7 @@ if __name__ == "__main__":
         [35., 0.],
     ])
 
-    ELE = Linear_triangular_element()
+    ELE = Element_linear_triangular()
 
     print("element_triangle_linear.global_normal(nodes, [1, 0]) = ", 
           ELE.global_normal(nodes, [1, 0]))
