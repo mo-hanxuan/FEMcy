@@ -40,16 +40,22 @@ Fig. 1 shows the geometric and consititutive model definition of elliptic membra
 
 #### Results are showed below:
 
-<img src="README.assets/image-20220909163740116.png" alt="image-20220909163740116" style="zoom:80%;" allign=center/>
+<img src="README.assets/image-20220924224519671.png" alt="image-20220909163740116" style="zoom:80%;" allign=center/>
 
-<center> Fig. 1  Results of elliptic membrane under normal pressure. (a) geometric model definition; (b) results from <a href=https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html>CoFEA</a>; (c, d) results of linear triangular element from Abaqus and FEMcy respectively; (e, f) results of quadratic triangular element from Abaqus and FEMcy respectively. </center>
+<center> Fig. 1  Results of elliptic membrane under normal pressure. (a) geometric model definition; (b) results from <a href=https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html>CoFEA</a>; (c, d) results of linear triangular element from Abaqus and FEMcy respectively; (e, f) results of quadratic triangular element from Abaqus and FEMcy respectively, shown by nodal stress extrapolated from integration points. </center>
 
 Results of simulation:
 
-| $\sigma_{yy}$  [MPa] | linear element | quadratic element |
-| :------------------: | :------------: | :---------------: |
-|        Abaqus        |     93.45      |       93.34       |
-|        FEMcy         |     93.56      |       94.88       |
+| $\sigma_{yy}$  [MPa] at point D | linear element |          quadratic element           |                                    |
+| :-----------------------------: | :------------: | :----------------------------------: | :--------------------------------: |
+|                                 |                | $\sigma_{yy}$ at node (extrapolated) | $\sigma_{yy}$ at integration point |
+|             Abaqus              |     93.45      |                93.34                 |               84.42                |
+|              FEMcy              |     93.56      |                93.32                 |               84.40                |
+|         relative error          |     0.12%      |                0.021%                |               0.024%               |
+
+The relative error shown above is the error between results of Abaqus and FEMcy, indicating that the results of these two softwares are almost the same. 
+
+Another interesting point is that, the linear element needs a very locally-refined mesh to get close to the expected result (~ 92.7 MPa), whereas the quadratic triangular element can get the accurate result at a relative coarse mesh as shown in the above figure. 
 
 corresponding **.inp file**:
 
@@ -92,7 +98,7 @@ you can see that the results (max y-displacement) show huge differences between 
 
     FEMcy result can be compared with Abaqus result: ./tests/abaqus_test\beam_deflection\load800_largeDef\beamDeflec_quadPSE_largeD_load800_fixX.odb
 ### 3. Cook's membrane
-This part is on-going. 
+Model definition including geometry and boundary condition is referred to [CoFEA](https://cofea.readthedocs.io/en/latest/benchmarks/002-cook-membrane/model.html). You can find the corresponding .inp files here in folder **./tests/cook_membrane**. Run **./main.py** to process these .inp files and you can see the corresponding results. 
 ## Future work
 + more types of boundary conditions, such as periodic-boundary-condition (PBC) by Lagrangian-multiplier method is on-going
 + multiphysics, general PDE solver
