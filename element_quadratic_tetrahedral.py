@@ -7,7 +7,7 @@ import taichi as ti
                   / |   \
                  /  |     \ 
                 /   9      8
-              (7)   |        \
+               7    |        \
               /     |          \
              /      |            \
             /       2------5------1 
@@ -20,6 +20,7 @@ import taichi as ti
   /
  ζ
 """ 
+@ti.data_oriented
 class Element_quadratic_tetrahedral(object):
     def __init__(self, gauss_points_count=4):
         self.dm = 3  # spatial dimension
@@ -280,3 +281,56 @@ class Element_quadratic_tetrahedral(object):
         
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
+
+
+    @ti.kernel
+    def extrapolate(self, internal_vals: ti.template(), nodal_vals: ti.template()):
+        """extrapolate the internal Gauss points' vals to the nodal vals
+           no averaging is performing here, we want to get the nodal vals patch by patch,
+           so the each patch maintain the original values at Gauss points, but different patches
+           have different values at their share nodes
+        input:
+            internal_vals: scaler field with shape = (elements.shape[0], gaussPoints.shape[0])
+            nodal_vals: vector field with shape = (elements.shape[0],), and the vector has dimension of elements.shape[0]
+        update:
+            nodal_vals is updated after this function
+        
+        noted: gauss points' number is written in bracket 
+               the Gauss points should be alligned at the order of the belowing figure
+               so that the natural coordinates of outer nodes can be consistent with element constructed by the Gauss points
+                                3
+                               /| \
+                              / |   \
+                             /  |(1)  \ 
+                            /   9      8
+                           7    |        \
+                          /     |          \
+                         /      |(3)    (0)  \
+                        /       2------5------1 
+                       / (2),/          ,,,/**
+                      /   6         4
+               η     / ,/   ,,/***
+               ^    0
+               |
+               ---> ξ
+              /
+             ζ
+        """
+        a = 0.585410196624968; b = 0.138196601125010
+        c = (1. - a) / (a - b); d = b / (a - b)
+        x = (0.5 - b) / (a - b)
+        natCoos = ti.Matrix([  # natural coordinates of outer nodes
+            [-d, -d, 1. + c, 2.*d-c],  # 0
+            [1. + c, -d, -d, 2.*d-c],  # 1
+            [-d, -d, -d, 1.+3.*d],  # 2
+            [-d, 1. + c, -d, 2.*d-c],  # 3
+            [x, -d, x, 1.-2.*x+d],  # 4
+            [x, -d, -d, 1.+2.*d-x],  # 5
+            [-d, -d, x, 1.+2.*d-x],  # 6
+            [-d, x, x, 1.-2.*x+d],  # 7
+            [x, x, -d, 1.-2.*x+d],  # 8
+            [-d, x, -d, 1.+2.*d-x],  # 9
+        ])
+        for ele in nodal_vals:
+            vec = ti.Vector([internal_vals[ele, i] for i in range(self.gaussPoints.shape[0])])
+            nodal_vals[ele] = natCoos @ vec
