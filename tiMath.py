@@ -42,6 +42,15 @@ def field_max(f: ti.template()) -> float:
 
 
 @ti.kernel 
+def vectorField_max(f: ti.template()) -> float:
+    """get the max value of a vector field"""
+    ans = -float("inf")
+    for I in ti.grouped(f):
+        ti.atomic_max(ans, f[I].max())
+    return ans
+
+
+@ti.kernel 
 def field_min(f: ti.template()) -> float:
     """get the min value of a scaler field"""
     ans = float("inf")

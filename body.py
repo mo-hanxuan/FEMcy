@@ -256,9 +256,8 @@ class Body:
         elements, vertex_val = ti.static(self.elements, self.vertex_val)
         for vertex in vertex_val:
             ele = self.mesh2ele[vertex]
-            local_i = tiMath.get_index_ti(elements[ele], vertex)
-            igp = vertex_nearest_gaussPoint[local_i]
-            vertex_val[vertex] = vals[ele, igp]
+            local_i = tiMath.get_index_ti(elements[ele], self.mesh_id[vertex])
+            vertex_val[vertex] = vals[ele][local_i]
     
 
     def get_vertex_color(self, minVal_input:float=None, maxVal_input:float=None):

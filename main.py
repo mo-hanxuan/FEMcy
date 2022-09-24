@@ -3,7 +3,7 @@ from stiffnessMtrx import System_of_equations
 from readInp import *
 from material import *
 from body import Body
-from tiMath import field_abs_max, scalerField_from_matrixField
+from tiMath import field_abs_max, scalerField_from_matrixField, vectorField_max
 
 
 if __name__ == "__main__":
@@ -39,13 +39,15 @@ if __name__ == "__main__":
     ### show the body by mises stress
     equationSystem.compute_strain_stress() 
     stress = equationSystem.mises_stress.to_numpy()
-    print("\033[35;1m maximum mises_stress = {} MPa \033[0m".format(stress.max()), end="; ")
+    print("\033[35;1m max mises_stress at integration point is {} MPa \033[0m".format(stress.max()), end="; ")
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
     windowLength = 512
     if not isinstance(equationSystem.ELE, Element_linear_triangular):  # situation when using 3D-GUI
+        equationSystem.ELE.extrapolate(equationSystem.mises_stress, equationSystem.nodal_vals)
+        print("\033[35;1m max nodal mises_stress = {} \033[0m".format(vectorField_max(equationSystem.nodal_vals)))
         window = ti.ui.Window('Mises stress', (windowLength, windowLength))
         while window.running:
-            equationSystem.body.show(window, equationSystem.dof, equationSystem.mises_stress, 
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals, 
                             equationSystem.ELE.vertex_nearest_gaussPoint)
     else:  # situation when using 2D-GUI
         gui = ti.GUI('mises stress', res=(windowLength, windowLength))
@@ -71,8 +73,10 @@ if __name__ == "__main__":
         window.destroy()
         window = ti.ui.Window('stress[{}, {}]'.format(*stress_id), (windowLength, windowLength))
         scalerField_from_matrixField(equationSystem.visualize_field, equationSystem.cauchy_stress, *stress_id)
+        equationSystem.ELE.extrapolate(equationSystem.visualize_field, equationSystem.nodal_vals)
+        print("\033[35;1m max nodal stress[{}, {}] = {} \033[0m".format(*stress_id, vectorField_max(equationSystem.nodal_vals)))
         while window.running:
-            equationSystem.body.show(window, equationSystem.dof, equationSystem.visualize_field, 
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals, 
                             equationSystem.ELE.vertex_nearest_gaussPoint)
     else: 
         gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))

@@ -16,72 +16,53 @@ some variables and functions related to quadratic triangular elements
     |
     ---> ξ 
 """
+@ti.data_oriented
 class Element_quadratic_triangular(object):
-    def __init__(self, gauss_points_count=3):
+    def __init__(self, ):
         self.dm = 2  # spatial dimension for triangular element
 
         ## Gauss Points for quadratic triangle element
-        if gauss_points_count == 3:
-            self.gaussPoints = ti.Vector.field(self.dm, ti.f64, shape=(3, ))
-            self.gaussPoints.from_numpy(np.array([
-                [1./6., 1./6.],
-                [2./3., 1./6.],
-                [1./6., 2./3.],
-            ]))
-            self.gaussWeights = ti.field(dtype=ti.f64, shape=(3, ))
-            self.gaussWeights.from_numpy(np.array([1./6., 1./6., 1./6.]))
-        
-        elif gauss_points_count == 4:
-            self.gaussPoints = ti.Vector.field(self.dm, ti.f64, shape=(4, ))
-            self.gaussPoints.from_numpy(np.array([
-                [1./6., 1./6.],
-                [2./3., 1./6.],
-                [1./6., 2./3.],
-                [1./3., 1./3.]
-            ]))
-            self.gaussWeights = ti.field(dtype=ti.f64, shape=(4, ))
-            self.gaussWeights.from_numpy(np.array([1./8., 1./8., 1./8., 1./8.]))
-        
-        self.gaussPointNum_eachFacet = 1
-
-        ### gauss points for visualization
-        self.gaussPoints_visualize = ti.Vector.field(self.dm, ti.f64, shape=(4, ))
-        self.gaussPoints_visualize.from_numpy(np.array([
-            [1./6., 1./6.], [2./3., 1./6.],
-            [1./6., 2./3.], [1./3., 1./3.]
+        self.gaussPoints = ti.Vector.field(self.dm, ti.f64, shape=(3, ))
+        self.gaussPoints.from_numpy(np.array([
+            [2./3., 1./6.],
+            [1./6., 2./3.],
+            [1./6., 1./6.],
         ]))
+        self.gaussWeights = ti.field(dtype=ti.f64, shape=(3, ))
+        self.gaussWeights.from_numpy(np.array([1./6., 1./6., 1./6.]))
 
         ### facets coordinates and normals for flux computation
         ### each facet has multiple gauss points
         ###     keys: tuple(id1, id2), use sorted tuple for convenience
         ###     values: natural coodinates of different Gauss points
         self.facet_natural_coos = {
-            (0, 3): [[0.5, 0.5], ],  # only one gauss points for each facet
-            (1, 3): [[0.5, 0.5], ],
-            (1, 4): [[0., 0.5], ],
-            (2, 4): [[0., 0.5], ],
-            (2, 5): [[0.5, 0.], ],
-            (0, 5): [[0.5, 0.], ],
+            (0, 3): [[0.5, 0.5], [1., 0.]],  # only one gauss points for each facet
+            (1, 3): [[0.5, 0.5], [0., 1.]],
+            (1, 4): [[0., 0.5], [0., 1.]],
+            (2, 4): [[0., 0.5], [0., 0.]],
+            (2, 5): [[0.5, 0.], [0., 0.]],
+            (0, 5): [[0.5, 0.], [1., 0.]],
         }
         self.facet_gauss_weights = {
-            (0, 3): [1., ],  # only one gauss points for each facet
-            (1, 3): [1., ],
-            (1, 4): [1., ],
-            (2, 4): [1., ],
-            (2, 5): [1., ],
-            (0, 5): [1., ],
+            (0, 3): [0.5, 0.5],  # only one gauss points for each facet
+            (1, 3): [0.5, 0.5],
+            (1, 4): [0.5, 0.5],
+            (2, 4): [0.5, 0.5],
+            (2, 5): [0.5, 0.5],
+            (0, 5): [0.5, 0.5],
         }
+        self.gaussPointNum_eachFacet = len(list(self.facet_gauss_weights.values())[0])
 
         """ facet normals in natural coordinate,
         must points to the outside of the element"""
         self.facet_natural_normals = {  
             ###     [[dξ, dη], ] each Gauss Point corresponds to a vector
-            (0, 3): [[1., 1.], ],  
-            (1, 3): [[1., 1.], ],
-            (1, 4): [[-1., 0.], ],
-            (2, 4): [[-1., 0.], ],
-            (2, 5): [[0., -1.], ],
-            (0, 5): [[0., -1.], ],
+            (0, 3): [[1., 1.], [1., 1.]],  
+            (1, 3): [[1., 1.], [1., 1.]],
+            (1, 4): [[-1., 0.], [-1., 0.]],
+            (2, 4): [[-1., 0.], [-1., 0.]],
+            (2, 5): [[0., -1.], [0., -1.]],
+            (0, 5): [[0., -1.], [0., -1.]],
         }
 
         """facet number for reading .inp (Abaqus, CalculiX) file and get the face set"""
@@ -315,6 +296,49 @@ class Element_quadratic_triangular(object):
         
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
+
+
+    @ti.kernel 
+    def extrapolate(self, internal_vals: ti.template(), nodal_vals: ti.template()):
+        """extrapolate the internal Gauss points' vals to the nodal vals
+           no averaging is performing here, we want to get the nodal vals patch by patch,
+           so the each patch maintain the original values at Gauss points, but different patches
+           have different values at their share nodes
+        input:
+            internal_vals: scaler field with shape = (elements.shape[0], gaussPoints.shape[0])
+            nodal_vals: vector field with shape = (elements.shape[0],), and the vector has dimension of elements.shape[0]
+        update:
+            nodal_vals is updated after this function
+        
+        noted: the Gauss points should be alligned at the order of the belowing figure
+               so that the natural coordinates of outer nodes can be consistent with element constructed by the Gauss points
+        1
+        |\
+        | \
+        |  \ 
+        |(1)\
+        |    \    
+        4     3
+        |      \
+        |       \
+        |        \ 
+        |(2)   (0)\
+    η   |          \
+    ^   2-----5-----0
+    |
+    ---> ξ 
+        """
+        natCoos = ti.Matrix([  # natural coordinates of outer nodes
+            [5./3., -1./3., -1./3.],
+            [-1./3., 5./3., -1./3.],
+            [-1./3., -1./3., 5./3.],
+            [2./3., 2./3., -1./3.],
+            [-1./3., 2./3., 2./3.],
+            [2./3., -1./3., 2./3.]
+        ])
+        for ele in nodal_vals:
+            vec = ti.Vector([internal_vals[ele, i] for i in range(self.gaussPoints.shape[0])])
+            nodal_vals[ele] = natCoos @ vec
 
 
 if __name__ == "__main__":

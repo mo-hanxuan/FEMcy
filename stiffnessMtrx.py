@@ -107,6 +107,8 @@ class System_of_equations:
         self.compiled = False  # indicate whether the assemble_sparseMtrx has been compiled
         self.visualize_field = ti.field(ti.f64,  # a field for visualization, you can visualize some idexes of stress or strain
                         shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
+        self.nodal_vals = ti.Vector.field(self.elements[0].n, ti.f64, shape=(self.elements.shape[0],)) # visualization of nodal strain or stress
+
 
     @ti.kernel
     def ddsdde_init(self, ):
@@ -265,7 +267,6 @@ class System_of_equations:
         """
         body = self.body; ELE = self.ELE
         body.get_boundary()
-        
         self.rhs.fill(0.)  # refresh the right hand side before apply Neumann BC
         
         for facet in load_facets:
@@ -293,7 +294,7 @@ class System_of_equations:
                     shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid] 
 
                     for i in range(self.dm):
-                        self.rhs[node0*self.dm + i] = self.rhs[node0*self.dm + i] + flux[i] * shapeVal
+                        self.rhs[node0*self.dm + i] += flux[i] * shapeVal
 
     
     @ti.func
@@ -921,13 +922,13 @@ class System_of_equations:
     def show_window(self, window, save2path: str=None, newton_loop: int=0, relax_loop: int=0):
         self.compute_strain_stress()
         if not isinstance(self.ELE, Element_linear_triangular):
-            self.body.show(window, self.dof, self.mises_stress, 
+            self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
+            self.body.show(window, self.dof, self.nodal_vals, 
                         self.ELE.vertex_nearest_gaussPoint)
         else: 
             self.body.show2d(window, disp=self.dof, 
                             field=self.mises_stress.to_numpy(dtype=np.float64), 
                             save2path="{}_{}_{}_{}.png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
-
 
 
 if __name__ == "__main__":
