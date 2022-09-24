@@ -36,7 +36,7 @@ class Element_quadratic_triangular(object):
         ###     keys: tuple(id1, id2), use sorted tuple for convenience
         ###     values: natural coodinates of different Gauss points
         self.facet_natural_coos = {
-            (0, 3): [[0.5, 0.5], [1., 0.]],  # only one gauss points for each facet
+            (0, 3): [[0.5, 0.5], [1., 0.]],
             (1, 3): [[0.5, 0.5], [0., 1.]],
             (1, 4): [[0., 0.5], [0., 1.]],
             (2, 4): [[0., 0.5], [0., 0.]],
@@ -44,7 +44,7 @@ class Element_quadratic_triangular(object):
             (0, 5): [[0.5, 0.], [1., 0.]],
         }
         self.facet_gauss_weights = {
-            (0, 3): [0.5, 0.5],  # only one gauss points for each facet
+            (0, 3): [0.5, 0.5], 
             (1, 3): [0.5, 0.5],
             (1, 4): [0.5, 0.5],
             (2, 4): [0.5, 0.5],

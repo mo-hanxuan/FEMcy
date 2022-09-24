@@ -4,6 +4,7 @@ imgui.ini
 *.bak
 **/example_linearSystem.yml
 *.bak.py
+*.bak[0-9].py
 **/figures.pptx
 tests/tests.py
 
