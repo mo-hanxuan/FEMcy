@@ -33,6 +33,18 @@ def field_abs_max(f: ti.template()) -> float:
 
 
 @ti.kernel 
+def field_norm(f: ti.template()) -> float:
+    """get modified Euclidean norm of the scaler field, (the modified 2nd norm) """
+    ans = 0.
+    for I in ti.grouped(f):
+        ans += f[I] ** 2
+    N = 1
+    for i in ti.static(range(len(f.shape))):
+        N *= f.shape[i]
+    return (ans / N) ** 0.5
+
+
+@ti.kernel 
 def field_max(f: ti.template()) -> float:
     """get the max value of a scaler field"""
     ans = -float("inf")
