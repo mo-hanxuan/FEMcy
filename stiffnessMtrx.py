@@ -333,7 +333,7 @@ class System_of_equations:
                 self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
             else:
                 self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
-        self.PCG.re_init()
+        self.PCG.re_init() 
         self.PCG.solve()
 
         if not self.geometric_nonlinear:

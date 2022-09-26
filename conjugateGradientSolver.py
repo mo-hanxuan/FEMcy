@@ -26,7 +26,7 @@ class ConjugateGradientSolver_rowMajor:
         self.eps = eps
     
 
-    def re_init(self, ):
+    def re_init(self, ): 
         """re_initialize if this CG class is reused repeatedly"""
         self.x.fill(0.)
         self.r.fill(0.)
