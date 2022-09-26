@@ -4,6 +4,7 @@ from readInp import *
 from material import *
 from body import Body
 from tiMath import field_abs_max, scalerField_from_matrixField, vectorField_max
+import time
 
 
 if __name__ == "__main__":
@@ -33,8 +34,11 @@ if __name__ == "__main__":
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
+    time0 = time.time()
     equationSystem.solve(inp, show_newton_steps=True, save2path=None)  # save2path=inpPath+inpName)
-    print("\033[40;33;1m equationSystem.dof = \n{} \033[0m".format(equationSystem.dof.to_numpy()))
+    time1 = time.time(); 
+    print("\033[40;33;1m equationSystem.dof = \n{}, time for finite element computing (include compling) is {} s \033[0m".format(
+        equationSystem.dof.to_numpy(), time1 - time0))
 
     ### show the body by mises stress
     equationSystem.compute_strain_stress() 

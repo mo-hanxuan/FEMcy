@@ -8,9 +8,8 @@ imgui.ini
 **/figures.pptx
 tests/tests.py
 
-### ignore the massive number of result png files, but remain the figure of Mises stress
+### ignore the massive number of result png files
 tests/*/**/*.png 
-!tests/*/**/MisesStress_*.png
 
 ### some intermediate output files of Abaqus
 **/*.sim

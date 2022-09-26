@@ -9,26 +9,13 @@ class Linear_isotropic_planeStress:
         self.G = G = modulus / 2. / (1. + poisson_ratio)  # shear modulus
         c00 = modulus / (1. - poisson_ratio**2)
         c01 = c00 * poisson_ratio
-        C = np.array([    # elastic constants in Voigt notation, len(C) = dm + dm*(dm-1)/2, i.e. 2d -> 3, 3d -> 6
-            [c00, c01, 0.],
-            [c01, c00, 0.], 
-            [0.,  0.,  G ]
-        ])
-        ti_C = ti.Matrix([
+        C = ti.Matrix([
             [c00, c01, 0.],
             [c01, c00, 0.], 
             [0.,  0.,  G ]
         ], ti.f64)
 
-        C_6x6 = np.array([  # voigt notation is related here, utilized to get 3D stress state for visulization
-            [c00, c01, 0., 0., 0., 0.],  # sigma x
-            [c01, c00, 0., 0., 0., 0.],  # sigma y
-            [0., 0., 0., 0., 0., 0.],  # sigma z
-            [0.,  0.,  0., G, 0., 0. ],  # tau xy
-            [0.,  0.,  0., 0., 0., 0.],  # tau zx
-            [0.,  0.,  0., 0., 0., 0.],  # tau yz
-        ])
-        ti_C_6x6 = ti.Matrix([  # voigt notation is related here, utilized to get 3D stress state for visulization
+        C_6x6 = ti.Matrix([  # voigt notation is related here, utilized to get 3D stress state for visulization
             [c00, c01, 0., 0., 0., 0.],  # sigma x
             [c01, c00, 0., 0., 0., 0.],  # sigma y
             [0., 0., 0., 0., 0., 0.],  # sigma z
@@ -37,8 +24,8 @@ class Linear_isotropic_planeStress:
             [0.,  0.,  0., 0., 0., 0.],  # tau yz
         ], ti.f64)
         
-        self.C = C; self.ti_C = ti_C
-        self.C_6x6 = C_6x6; self.ti_C_6x6 = ti_C_6x6
+        self.C = C
+        self.C_6x6 = C_6x6
 
 
 class Linear_isotropic_planeStrain:
@@ -50,26 +37,13 @@ class Linear_isotropic_planeStrain:
         term2 = poisson_ratio / (abs(1. - 2. * poisson_ratio) + 1.e-30)
         c00 = term1 * (1. + term2)
         c01 = term1 * term2
-        C = np.array([    # elastic constants in Voigt notation, len(C) = dm + dm*(dm-1)/2, i.e. 2d -> 3, 3d -> 6
-            [c00, c01, 0.],  # sigma x
-            [c01, c00, 0.],  # sigma y
-            [0.,  0.,  G ],  # tau xy
-        ])
-        ti_C = ti.Matrix([
+        C = ti.Matrix([
             [c00, c01, 0.],  # sigma x
             [c01, c00, 0.],  # sigma y
             [0.,  0.,  G ],  # tau xy
         ], ti.f64)
         
-        C_6x6 = np.array([  # voigt notation is related here, utilized to get 3D stress state for visulization
-            [c00, c01, c01, 0., 0., 0.],  # sigma x
-            [c01, c00, c01, 0., 0., 0.],  # sigma y
-            [c01, c01, 0., 0., 0., 0.],  # sigma z
-            [0.,  0.,  0., G, 0., 0. ],  # tau xy
-            [0.,  0.,  0., 0., 0., 0.],  # tau zx
-            [0.,  0.,  0., 0., 0., 0.],  # tau yz
-        ])
-        ti_C_6x6 = ti.Matrix([  # voigt notation is related here, utilized to get 3D stress state for visulization
+        C_6x6 = ti.Matrix([  # voigt notation is related here, utilized to get 3D stress state for visulization
             [c00, c01, c01, 0., 0., 0.],  # sigma x
             [c01, c00, c01, 0., 0., 0.],  # sigma y
             [c01, c01, 0., 0., 0., 0.],  # sigma z
@@ -78,8 +52,8 @@ class Linear_isotropic_planeStrain:
             [0.,  0.,  0., 0., 0., 0.],  # tau yz
         ], ti.f64)
 
-        self.C = C; self.ti_C = ti_C
-        self.C_6x6 = C_6x6; self.ti_C_6x6 = ti_C_6x6
+        self.C = C
+        self.C_6x6 = C_6x6
 
 
 class Linear_isotropic:  # linear isotropic material for 3d case
@@ -92,15 +66,7 @@ class Linear_isotropic:  # linear isotropic material for 3d case
 
         """the elastic tensor for linear isotropic material is refered to 
            https://help.solidworks.com/2010/English/SolidWorks/cworks/LegacyHelp/Simulation/Materials/Material_models/Linear_Elastic_Isotropic_Model.htm#:~:text=A%20material%20is%20said%20to,expansion%2C%20thermal%20conductivity%2C%20etc."""
-        C_6x6 = np.array([  # voigt notation is related here
-            [c00, c01, c01, 0., 0., 0.],  # sigma x
-            [c01, c00, c01, 0., 0., 0.],  # sigma y
-            [c01, c01, c00, 0., 0., 0.],  # sigma z
-            [0.,  0.,  0.,  G , 0., 0.],  # tau xy
-            [0.,  0.,  0.,  0., G , 0.],  # tau zx
-            [0.,  0.,  0.,  0., 0., G ],  # tau yz
-        ])
-        ti_C_6x6 = ti.Matrix([  # voigt notation is related here
+        C_6x6 = ti.Matrix([  # voigt notation is related here
             [c00, c01, c01, 0., 0., 0.],  # sigma x
             [c01, c00, c01, 0., 0., 0.],  # sigma y
             [c01, c01, c00, 0., 0., 0.],  # sigma z
@@ -110,4 +76,3 @@ class Linear_isotropic:  # linear isotropic material for 3d case
         ], ti.f64)
 
         self.C = C_6x6
-        self.ti_C = ti_C_6x6

@@ -68,8 +68,8 @@ class System_of_equations:
         self.vol = ti.field(ti.f64, shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         
         ### constitutive material (e.g., elastic constants) of each element
-        self.material = material; self.C = material.ti_C
-        self.ddsdde = ti.Matrix.field(n=material.C.shape[0], m=material.C.shape[1], dtype=ti.f64, 
+        self.material = material; self.C = material.C
+        self.ddsdde = ti.Matrix.field(n=material.C.n, m=material.C.m, dtype=ti.f64, 
                                       shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         self.ddsdde_init()
         
@@ -524,7 +524,7 @@ class System_of_equations:
 
                 ### get the PK2 stress, voigt notation has been used here, 
                 ### modified later by different C at different gauss point
-                pk2_voigt = self.material.ti_C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                pk2_voigt = self.material.C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
                                                         2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
                 pk2 = ti.Matrix([ 
                     [pk2_voigt[0], pk2_voigt[3], pk2_voigt[4]],
@@ -554,7 +554,7 @@ class System_of_equations:
 
                 ### get the PK2 stress, voigt notation has been used here, 
                 ### modified later by different C at different gauss point
-                s_voigt = self.material.ti_C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                s_voigt = self.material.C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
                                                     2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
                 self.cauchy_stress[ele, igp] = ti.Matrix([ 
                     [s_voigt[0], s_voigt[3], s_voigt[4]],
@@ -617,8 +617,8 @@ class System_of_equations:
 
                 ### get the PK2 stress, voigt notation has been used here, 
                 ### modified later by different C at different gauss point
-                pk2_voigt = self.material.ti_C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                                2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
+                pk2_voigt = self.material.C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                                                            2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
                 pk2 = ti.Matrix([ 
                     [pk2_voigt[0], pk2_voigt[3], pk2_voigt[4]],
                     [pk2_voigt[3], pk2_voigt[1], pk2_voigt[5]],
@@ -682,8 +682,8 @@ class System_of_equations:
 
                 ### get the stress, voigt notation has been used here, 
                 ### modified later by different C at different gauss point
-                stress_voigt = self.material.ti_C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                                   2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
+                stress_voigt = self.material.C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                                                                2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
                 stress = ti.Matrix([ 
                     [stress_voigt[0], stress_voigt[3], stress_voigt[4]],
                     [stress_voigt[3], stress_voigt[1], stress_voigt[5]],
@@ -890,9 +890,10 @@ class System_of_equations:
                     if show_newton_steps:
                         self.show_window(window, save2path, newton_loop, relax_loop=0)
 
+                    ### boost Newton's method by going a larger step if residual force is declining
                     relax_loop = -1; relaxation = 1.
                     relaxation = 1.  #  further_step_ratio
-                    while 0.1 * pre_residual < residual < pre_residual:  # Newton's step too small, you can directly go further
+                    while 0.1 * pre_residual < residual < pre_residual:  # when residual declines, go on this direction further
                         new_residual = residual
                         relax_loop += 1
                         if relax_loop >= 10:
@@ -906,8 +907,9 @@ class System_of_equations:
                             residual = inside_relaxation()
                             relaxation *= 0.5
                     
+                    ### relaxation for Newton's method when residual gets bigger
                     relax_loop = -1; relaxation = 1.
-                    while residual > pre_residual:  # relaxation for Newton's method
+                    while residual > pre_residual:
                         relax_loop += 1
                         if relax_loop >= 2:
                             break
