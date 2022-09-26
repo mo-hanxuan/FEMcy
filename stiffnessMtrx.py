@@ -11,7 +11,7 @@ from element_linear_triangular import Element_linear_triangular
 from element_quadratic_triangular import Element_quadratic_triangular
 from element_linear_tetrahedral import Element_linear_tetrahedral
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
-from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_norm, get_index_ti, vec_mul_voigtMtrx
+from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_multiply, field_norm, get_index_ti, vec_mul_voigtMtrx, field_abs_max
 
 
 @ti.data_oriented
@@ -895,7 +895,7 @@ class System_of_equations:
                     while 0.1 * pre_residual < residual < pre_residual:  # Newton's step too small, you can directly go further
                         new_residual = residual
                         relax_loop += 1
-                        if relax_loop >= 16:
+                        if relax_loop >= 10:
                             break
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
                         ### self.dof -= relaxation * solver.x
@@ -909,12 +909,13 @@ class System_of_equations:
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
                         relax_loop += 1
-                        if relax_loop >= 1:
+                        if relax_loop >= 2:
                             break
                         relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
-                        ### self.dof += relaxation * solver.x
-                        a_equals_b_plus_c_mul_d(self.dof, self.dof, relaxation, solver.x)
+                        ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
+                        a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
+                        field_multiply(solver.x, relaxation)
                         residual = inside_relaxation()
 
                     pre_residual = residual
