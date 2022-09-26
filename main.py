@@ -47,8 +47,7 @@ if __name__ == "__main__":
         print("\033[35;1m max nodal mises_stress = {} \033[0m".format(vectorField_max(equationSystem.nodal_vals)))
         window = ti.ui.Window('Mises stress', (windowLength, windowLength))
         while window.running:
-            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals, 
-                            equationSystem.ELE.vertex_nearest_gaussPoint)
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals)
     else:  # situation when using 2D-GUI
         gui = ti.GUI('mises stress', res=(windowLength, windowLength))
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 
@@ -76,8 +75,7 @@ if __name__ == "__main__":
         equationSystem.ELE.extrapolate(equationSystem.visualize_field, equationSystem.nodal_vals)
         print("\033[35;1m max nodal stress[{}, {}] = {} \033[0m".format(*stress_id, vectorField_max(equationSystem.nodal_vals)))
         while window.running:
-            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals, 
-                            equationSystem.ELE.vertex_nearest_gaussPoint)
+            equationSystem.body.show(window, equationSystem.dof, equationSystem.nodal_vals)
     else: 
         gui = ti.GUI('stress[{}, {}]'.format(*stress_id), res=(windowLength, windowLength))
         equationSystem.body.show2d(gui, disp=equationSystem.dof, 

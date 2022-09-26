@@ -111,7 +111,7 @@ class Body:
         gui.show(save2path)
     
 
-    def show(self, window: ti.ui.Window, disp, vals, vertex_nearest_gaussPoint):  ### currently, this is for 2d case
+    def show(self, window: ti.ui.Window, disp, vals):  ### currently, this is for 2d case
 
         windowLength = 1024
         lengthScale = min(windowLength, 512)  # lengthScale is the length of the body after 
@@ -136,7 +136,7 @@ class Body:
 
         ### update the mesh and get the vertex color
         self.update_mesh(disp, self.visualizeRatio)
-        self.get_vertex_val(vals, vertex_nearest_gaussPoint)
+        self.get_vertex_val(vals)
         self.get_vertex_color()
 
         ### now we render it
@@ -252,7 +252,7 @@ class Body:
 
 
     @ti.kernel
-    def get_vertex_val(self, vals: ti.template(), vertex_nearest_gaussPoint: ti.template()):
+    def get_vertex_val(self, vals: ti.template()):
         elements, vertex_val = ti.static(self.elements, self.vertex_val)
         for vertex in vertex_val:
             ele = self.mesh2ele[vertex]

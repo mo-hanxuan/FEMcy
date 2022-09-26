@@ -926,8 +926,7 @@ class System_of_equations:
         self.compute_strain_stress()
         if not isinstance(self.ELE, Element_linear_triangular):
             self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
-            self.body.show(window, self.dof, self.nodal_vals, 
-                        self.ELE.vertex_nearest_gaussPoint)
+            self.body.show(window, self.dof, self.nodal_vals)
         else: 
             self.body.show2d(window, disp=self.dof, 
                             field=self.mises_stress.to_numpy(dtype=np.float64), 

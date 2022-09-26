@@ -79,12 +79,6 @@ class Element_quadratic_tetrahedral(object):
                                 ((1, 2, 3, 5, 8, 9), ),  # (1, 2, 3)
                                 ((0, 2, 3, 6, 7, 9), )]  # (0, 2, 3) 
 
-        """the nearest gauss point for each vertex, this is for mesh visualization, 
-           where we can define color-per-vertex"""
-        self.vertex_nearest_gaussPoint = ti.field(ti.i32, shape=(10))
-        self.vertex_nearest_gaussPoint.from_numpy(np.array([2, 0, 3, 1, 
-                                                            0, 3, 2, 1, 0, 3]))  # modified later
-
 
     @ti.func
     def shapeFunc(self, natCoo):  
