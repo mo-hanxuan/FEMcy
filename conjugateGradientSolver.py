@@ -22,9 +22,17 @@ class ConjugateGradientSolver_rowMajor:
         self.d = ti.field(ti.f64, b.shape[0])  # the direction of change of x
         self.M = ti.field(ti.f64, b.shape[0]); self.M_init()  # the inverse of precondition diagonal matrix, M^(-1) actually
 
-        self.Ad = ti.field(ti.f64, b.shape[0])  # A multiple d
+        self.Ad = ti.field(ti.f64, b.shape[0])  # A multiply d
         self.eps = eps
     
+
+    def initialize(self, ):
+        self.x.fill(0.)
+        self.r.fill(0.)
+        self.d.fill(0.)
+        self.M.fill(0.); self.M_init()
+        self.Ad.fill(0.)
+
 
     @ti.func
     def A_get(self, i, j):

@@ -11,7 +11,7 @@ from element_linear_triangular import Element_linear_triangular
 from element_quadratic_triangular import Element_quadratic_triangular
 from element_linear_tetrahedral import Element_linear_tetrahedral
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
-from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_abs_max, get_index_ti, vec_mul_voigtMtrx
+from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_norm, get_index_ti, vec_mul_voigtMtrx
 
 
 @ti.data_oriented
@@ -328,19 +328,21 @@ class System_of_equations:
     
 
     def solve_dof(self):
-        if not self.geometric_nonlinear:
-            solver = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
-        else:
-            solver = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
-        solver.solve()
+        if not hasattr (self, "PCG"):
+            if not self.geometric_nonlinear:
+                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
+            else:
+                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
+        self.PCG.initialize()
+        self.PCG.solve()
 
         if not self.geometric_nonlinear:
-            self.dof = solver.x
+            self.dof = self.PCG.x
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
-            c_equals_a_minus_b(self.dof, self.dof, solver.x)
+            c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
         
-        return solver
+        return self.PCG
 
 
     def compute_strain_stress(self, ):
@@ -825,7 +827,7 @@ class System_of_equations:
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            residual = field_abs_max(self.residual_nodal_force)
+            residual = field_norm(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
                 self.show_window(window, save2path, newton_loop, relax_loop)
@@ -860,7 +862,7 @@ class System_of_equations:
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
             c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            pre_residual = field_abs_max(self.residual_nodal_force)
+            pre_residual = field_norm(self.residual_nodal_force)
             if not hasattr(self, "ini_residual"):
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
@@ -883,7 +885,7 @@ class System_of_equations:
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
                     c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-                    residual = field_abs_max(self.residual_nodal_force)
+                    residual = field_norm(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
                         self.show_window(window, save2path, newton_loop, relax_loop=0)
@@ -907,7 +909,7 @@ class System_of_equations:
                     relax_loop = -1; relaxation = 1.
                     while residual > pre_residual:  # relaxation for Newton's method
                         relax_loop += 1
-                        if relax_loop >= 2:
+                        if relax_loop >= 1:
                             break
                         relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
