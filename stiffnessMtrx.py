@@ -145,7 +145,7 @@ class System_of_equations:
                         ### C : ε， each component is a vector with dimension s, thus maybe can not use operation @ directly
                         stress_voigt = ddsdde[ele, igp] @ strain
 
-                        ### modified latter to automatically adjust to 2d and 3d
+                        ### dsdx mutiplies the stress
                         dsdx_x_stress = vec_mul_voigtMtrx(dsdx[nid, :], stress_voigt)
                         
                         ### get the volume related to this Gauss point
@@ -159,7 +159,6 @@ class System_of_equations:
                             i_global = Is[i_local]
                             for j_local in range(Js.n):
                                 j_global = Js[j_local]
-                                ### no atomic add "+=" here
                                 sparseMtrx[i_global, j_global] = \
                                 sparseMtrx[i_global, j_global] + dsdx_x_stress[i_local, j_local] * vol
         ### transform the sparse matrix into row major
