@@ -22,7 +22,22 @@ FEMcy is a finite element solver for **structural analysis** in **continuum mech
     >  <font color=green>**please give the .inp format's input file path and name:** </font> ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 
     more examples of inp files can be found at ./tests folder <br>
+   
 5. after convergence, the deformed body colored by mises-stress (defaultly) is showed at the window.
+
+## Performance comparison between stiffness Matrix with Energy-form and Galerkin-form method
+
+In this **git branch**, we construct the stiffness matrix by Energy form $(K = \int_{}{B^{T}DB\ d\Omega})$ instead of Galerkin form $(K = \int_{}{(\nabla N)DB\ d\Omega})$,  the neumerical results show to be the same for these two method, thus they are equivalent. But the performances considering computation time are different. It seems that Galerkin-form consume less time to compile. 
+
+**Table 1**: Consuming time for compiling of Energy-form and Galerkin-form
+
+|               | Engergy form, $K = \int_{}{B^{T}DBd\Omega}$ | Galerkin Form $K = \int_{}{(\nabla N)DB\ d\Omega}$ |
+| :-----------: | :-----------------------------------------: | :------------------------------------------------: |
+| C3D10 element |                   42 min                    |                   286 s < 5 min                    |
+| CPE6 element  |                   21.5 s                    |                       11.7 s                       |
+
+The above table shows that Galerkin-form consumes less time to compile compared to Galerkin-form, while the simulation results are the same for these two methods. Thus, Galerkin-form is better than Energy-form for stiffness matrix here.  
+
 ## Examples (some benchmark problems) 
 ### 1. elliptic-membrane with constant pressure
 

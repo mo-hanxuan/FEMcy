@@ -145,8 +145,8 @@ class System_of_equations:
                         ### C : ε， each component is a vector with dimension s, thus maybe can not use operation @ directly
                         stress_voigt = ddsdde[ele, igp] @ strain
 
-                        ### dsdx mutiplies the stress
-                        dsdx_x_stress = vec_mul_voigtMtrx(dsdx[nid, :], stress_voigt)
+                        ### elastic energy, BT @ D @ B = BT @ stress, where BT is inverse of strain B
+                        bdb = strain.transpose() @ stress_voigt
                         
                         ### get the volume related to this Gauss point
                         vol = self.vol[ele, igp]
@@ -160,7 +160,7 @@ class System_of_equations:
                             for j_local in range(Js.n):
                                 j_global = Js[j_local]
                                 sparseMtrx[i_global, j_global] = \
-                                sparseMtrx[i_global, j_global] + dsdx_x_stress[i_local, j_local] * vol
+                                sparseMtrx[i_global, j_global] + bdb[nid * dm + i_local, j_local] * vol
         ### transform the sparse matrix into row major
         for i in sparseMtrx_rowMajor:
             for j in range(sparseMtrx_rowMajor[0].n):
