@@ -907,12 +907,11 @@ class System_of_equations:
                             relaxation *= 0.5
                     
                     ### relaxation for Newton's method when residual gets bigger
-                    relax_loop = -1; relaxation = 1.
+                    relax_loop = -1; relaxation = 0.5
                     while residual > pre_residual:
                         relax_loop += 1
                         if relax_loop >= 2:
                             break
-                        relaxation *= 0.5
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
                         ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
                         a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
