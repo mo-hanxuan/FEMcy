@@ -99,8 +99,7 @@ class Body:
             field_colors = np.zeros(field.shape[0], dtype=np.int32)
             for i in range(len(field)):
                 red, green, blue = getColor((field[i] - field_min) / (field_max - field_min + 1.e-30))
-                field_colors[i] = int("0x{:02x}{:02x}{:02x}".format(
-                                      int(255 * red), int(255 * green), int(255 * blue)), base=16)
+                field_colors[i] = ti.rgb_to_hex([red, green, blue])
         else:
             field_colors = 0xED553B
 
