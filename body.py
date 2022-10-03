@@ -110,7 +110,7 @@ class Body:
         gui.show(save2path)
     
 
-    def show(self, window: ti.ui.Window, disp, vals):  ### currently, this is for 2d case
+    def show(self, window: ti.ui.Window, disp, vals):
 
         windowLength = 1024
         lengthScale = min(windowLength, 512)  # lengthScale is the length of the body after 
@@ -138,24 +138,26 @@ class Body:
         self.get_vertex_val(vals)
         self.get_vertex_color()
 
-        ### now we render it
-        def render():
-            scene = ti.ui.Scene()
-            camera = ti.ui.Camera()
+        ### now we render the window
+        if not hasattr(self, "camera"):
+            camera = ti.ui.Camera(); scene = ti.ui.Scene()
+            self.camera = camera; self.scene = scene
             camera.position(center[0], center[1] + 0.1 * length, 100.)  # if camera is far away from the object, you can't see any thing
             camera.lookat(center[0], center[1] + 0.1 * length, center[2])
             camera.up(0., 1., 0.)
-            # if self.dm == 2: camera.projection_mode(1)
-            # elif self.dm == 3: camera.projection_mode(0)
-            scene.set_camera(camera)
-            scene.point_light(pos=(-light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
-            scene.point_light(pos=(light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
-            scene.ambient_light(color=(0.5, 0.5, 0.5))
-            scene.mesh(vertices=self.mesh, per_vertex_color=self.vertex_color, two_sided=True)
-            canvas.scene(scene)
+        else:
+            camera, scene = self.camera, self.scene
+        camera.track_user_inputs(window, movement_speed=0.02, hold_key=ti.ui.LMB)
+        scene.set_camera(camera)
+        # if self.dm == 2: camera.projection_mode(1)
+        # elif self.dm == 3: camera.projection_mode(0)
+        scene.point_light(pos=(-light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
+        scene.point_light(pos=(light_distance, 0., light_distance), color=(0.5, 0.5, 0.5))
+        scene.ambient_light(color=(0.5, 0.5, 0.5))
+        scene.mesh(vertices=self.mesh, per_vertex_color=self.vertex_color, two_sided=True)
+        canvas.scene(scene)
             
         ### show the window
-        render()
         window.show()
     
 
