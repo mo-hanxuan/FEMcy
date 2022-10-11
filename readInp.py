@@ -9,6 +9,7 @@ from element_linear_tetrahedral import Element_linear_tetrahedral
 from element_linear_triangular import Element_linear_triangular
 from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
 from element_quadratic_triangular import Element_quadratic_triangular
+from material import *
 
 
 class Inp_info(object):
@@ -284,6 +285,28 @@ class Inp_info(object):
                         materials[material_type] = list(map(float, splited_line))
                     else:
                         previous_line = None; continue
+        ### deduce material by element and material type
+        ele_type = list(self.eSets.keys())[0]
+        if ele_type[0:3] in ["CPS", "CPE"]:  # 2D case
+            for key in materials:
+                if key != "Elastic":
+                    raise ValueError("only support linear elastic material for 2d element now.")
+                else:
+                    if ele_type[0:3] == "CPS":
+                        materials[key] = Linear_isotropic_planeStress(modulus=materials["Elastic"][0], 
+                                                                poisson_ratio=materials["Elastic"][1])
+                    elif ele_type[0:3] == "CPE":
+                        materials[key] = Linear_isotropic_planeStrain(modulus=materials["Elastic"][0], 
+                                                                poisson_ratio=materials["Elastic"][1])
+        elif ele_type[0:3] == "C3D":
+            for key in materials:
+                if key == "Elastic":
+                    materials[key] = Linear_isotropic(modulus=materials["Elastic"][0], 
+                                                poisson_ratio=materials["Elastic"][1])
+                elif "neo hooke" in key:
+                    materials[key] = NeoHookean(C1=materials[key][0], D1=1./materials[key][1])
+                else:
+                    raise ValueError("material type {} has not been supported now".format(key))
         return materials
     
 
@@ -357,3 +380,4 @@ if __name__ == "__main__":
 
     print("\033[40;33;1m dirichlet_bc_info = {} \033[0m".format(inp.dirichlet_bc_info))
     print("\033[40;32;1m neumann_bc_info = {} \033[0m".format(inp.neumann_bc_info))
+    print("\033[40;32;1m materials = {}\033[0m".format(inp.materials))

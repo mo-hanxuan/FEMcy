@@ -353,18 +353,13 @@ class System_of_equations:
             self.get_strain_largeDeformation()
         ### get the stress
         if not self.geometric_nonlinear:
-            if isinstance(self.material, Linear_isotropic_planeStrain):
-                self.constitutive_planeStrain_linear(self.ELE.gaussPoints)
-            elif isinstance(self.material, Linear_isotropic_planeStress):
-                self.constitutive_planeStress_linear(self.ELE.gaussPoints)
-            elif isinstance(self.material, Linear_isotropic):
-                self.constitutive_infinitesimal(self.ELE.gaussPoints)
+            self.material.constitutive_smallDeform(self.F, self.cauchy_stress, self.ddsdde)
         else:
             pass  # stress has been computed for geometric nonlinear case
         ### compute mises stress
-        if isinstance(self.material, Linear_isotropic_planeStrain):
+        if self.material.type == "planeStrain":
             self.get_mises_stress_planeStrain()
-        elif isinstance(self.material, Linear_isotropic_planeStress):
+        elif self.material.type == "planeStress":
             self.get_mises_stress_planeStress()
         else:
             self.get_mises_stress_3d()
@@ -505,208 +500,11 @@ class System_of_equations:
                 strain[ele, igp] = (F.transpose() @ F - eye) / 2.
 
 
-    @ti.kernel 
-    def constitutive_pk2(self, gaussPoints: ti.template()):
-        """constitutive use Green's strain and PK2 stress"""
-        elements = ti.static(self.elements)
-        eye = ti.Matrix([ 
-            [1., 0., 0.],
-            [0., 1., 0.],
-            [0., 0., 1.]
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-
-                ### get the Green Strain, E
-                E = (F.transpose() @ F - eye) / 2.
-
-                ### get the PK2 stress, voigt notation has been used here, 
-                ### modified later by different C at different gauss point
-                pk2_voigt = self.material.C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                        2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
-                pk2 = ti.Matrix([ 
-                    [pk2_voigt[0], pk2_voigt[3], pk2_voigt[4]],
-                    [pk2_voigt[3], pk2_voigt[1], pk2_voigt[5]],
-                    [pk2_voigt[4], pk2_voigt[5], pk2_voigt[2]]
-                ])
-
-                ### get the cauchy stress
-                self.cauchy_stress[ele, igp] = F @ pk2 @ F.transpose() / F.determinant()
-
-
-    @ti.kernel 
-    def constitutive_infinitesimal(self, gaussPoints: ti.template()):
-        """constitutive use Green's strain and PK2 stress"""
-        elements = ti.static(self.elements)
-        eye = ti.Matrix([ 
-            [1., 0., 0.],
-            [0., 1., 0.],
-            [0., 0., 1.]
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-
-                ### get the infinitesimal strain, E
-                E = (F + F.transpose()) / 2. - eye
-
-                ### get the PK2 stress, voigt notation has been used here, 
-                ### modified later by different C at different gauss point
-                s_voigt = self.material.C @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                    2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
-                self.cauchy_stress[ele, igp] = ti.Matrix([ 
-                    [s_voigt[0], s_voigt[3], s_voigt[4]],
-                    [s_voigt[3], s_voigt[1], s_voigt[5]],
-                    [s_voigt[4], s_voigt[5], s_voigt[2]]
-                ])
-
-
-    @ti.kernel
-    def constitutive_planeStrain_nonlinear(self, gaussPoints: ti.template()):
-        """geometric nonlinear constitutive of plane strain,
-           get the stress of each integration point 
-           according to deformation gradient"""
-        elements, ddsdde = ti.static(self.elements, self.ddsdde)
-        eye = ti.Matrix([ 
-            [1., 0.],
-            [0., 1.],
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-                
-                ### get the Green Strain, E
-                E = (F.transpose() @ F - eye) / 2.
-
-                ### get the PK2 stress
-                pk2_voigt = ddsdde[ele, igp] @ ti.Vector([E[0, 0], E[1, 1], 
-                                                          E[0, 1] + E[1, 0]])
-                pk2 = ti.Matrix([ 
-                    [pk2_voigt[0], pk2_voigt[2]],
-                    [pk2_voigt[2], pk2_voigt[1]]
-                ])
-                ### get the Cauchy stress  
-                self.cauchy_stress[ele, igp] = F @ pk2 @ F.transpose() / F.determinant()
-    
-
-    @ti.kernel
-    def constitutive_planeStress_nonlinear(self, gaussPoints: ti.template()):
-        """geometric nonlinear constitutive of plane stress
-           get the stress of each integration point
-           constitutive model of plane stress can 
-           refer to https://www.comsol.com/blogs/what-is-the-difference-between-plane-stress-and-plane-strain """
-        elements, nu = ti.static(self.elements, self.material.poisson_ratio)
-        eye_3d = ti.Matrix([ 
-            [1., 0., 0.],
-            [0., 1., 0.],
-            [0., 0., 1.]
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-
-                ### get the deformation gradient at 3d
-                F_3d = ti.Matrix([[0. for _ in range(3)] for _ in range(3)])
-                F_3d[0:2, 0:2] = F[0:2, 0:2]
-                F_3d[2, 2] = -nu / (1. - nu) * (F[0, 0] + F[1, 1] - 2.) + 1.  # deformation at z coordinate
-
-                ### get the Green Strain, E
-                E = (F_3d.transpose() @ F_3d - eye_3d) / 2.
-
-                ### get the PK2 stress, voigt notation has been used here, 
-                ### modified later by different C at different gauss point
-                pk2_voigt = self.material.C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                            2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
-                pk2 = ti.Matrix([ 
-                    [pk2_voigt[0], pk2_voigt[3], pk2_voigt[4]],
-                    [pk2_voigt[3], pk2_voigt[1], pk2_voigt[5]],
-                    [pk2_voigt[4], pk2_voigt[5], pk2_voigt[2]]
-                ])
-
-                ### get the cauchy stress
-                stress = F_3d @ pk2 @ F_3d.transpose() / F_3d.determinant()
-                self.cauchy_stress[ele, igp][0:2, 0:2] = stress[0:2, 0:2]
-    
-
-    @ti.kernel
-    def constitutive_planeStrain_linear(self, gaussPoints: ti.template()):
-        """linear constitutive of plane strain,
-           get the stress of each integration point 
-           according to deformation gradient"""
-        elements, ddsdde = ti.static(self.elements, self.ddsdde)
-        eye = ti.Matrix([ 
-            [1., 0.],
-            [0., 1.],
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-                
-                ### get the infinitesimal strain
-                E = (F + F.transpose()) / 2. - eye
-
-                ### get the stress
-                E_voigt = ti.Vector([E[0, 0], E[1, 1], 
-                                     E[0, 1] + E[1, 0]])
-                stress_voigt = ddsdde[ele, igp] @ E_voigt
-                ### get the Cauchy stress
-                self.cauchy_stress[ele, igp] = ti.Matrix([[stress_voigt[0], stress_voigt[2]], 
-                                                          [stress_voigt[2], stress_voigt[1]]])
-
-
-    @ti.kernel
-    def constitutive_planeStress_linear(self, gaussPoints: ti.template()):
-        """linear constitutive of plane stress
-           get the stress of each integration point
-           constitutive model of plane stress can 
-           refer to https://www.comsol.com/blogs/what-is-the-difference-between-plane-stress-and-plane-strain """
-        elements, nu = ti.static(self.elements, self.material.poisson_ratio)
-        eye_3d = ti.Matrix([ 
-            [1., 0., 0.],
-            [0., 1., 0.],
-            [0., 0., 1.]
-        ])
-        for ele in elements:
-            for igp in range(gaussPoints.shape[0]):
-                F = self.F[ele, igp]
-
-                ### get the deformation gradient at 3d
-                F_3d = ti.Matrix([[0. for _ in range(3)] for _ in range(3)])
-                F_3d[0:2, 0:2] = F[0:2, 0:2]
-                F_3d[2, 2] = -nu / (1. - nu) * (F[0, 0] + F[1, 1] - 2.) + 1.  # deformation at z coordinate
-
-                ### get the infinitesimal strain E
-                E = (F_3d + F_3d.transpose()) / 2. - eye_3d
-
-                ### get the stress, voigt notation has been used here, 
-                ### modified later by different C at different gauss point
-                stress_voigt = self.material.C_6x6 @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                                                2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
-                stress = ti.Matrix([ 
-                    [stress_voigt[0], stress_voigt[3], stress_voigt[4]],
-                    [stress_voigt[3], stress_voigt[1], stress_voigt[5]],
-                    [stress_voigt[4], stress_voigt[5], stress_voigt[2]]
-                ])
-                ### get the cauchy stress
-                self.cauchy_stress[ele, igp][0:2, 0:2] = stress[0:2, 0:2]
-
-
     def assemble_nodal_force_GN(self, ):
         """assemble the nodal force for GN (geometric nonlinear)"""
         ### get all stresses at integration points by constitutive, modified latter by automatically change consititutive
-        if isinstance(self.material, Linear_isotropic_planeStrain):
-            self.get_deformation_gradient()
-            self.constitutive_planeStrain_nonlinear(self.ELE.gaussPoints)
-        elif isinstance(self.material, Linear_isotropic_planeStress):
-            self.get_deformation_gradient()
-            self.constitutive_planeStress_nonlinear(self.ELE.gaussPoints)
-        elif isinstance(self.material, Linear_isotropic):
-            self.get_deformation_gradient()
-            self.constitutive_pk2(self.ELE.gaussPoints)
-        else:
-            print("\033[31;1m error! currently we only support these types of materials: "
-                  "plane strain, plane stress and 3D linear elastic \033[0m")
+        self.get_deformation_gradient()
+        self.material.constitutive_largeDeform(self.F, self.cauchy_stress, self.ddsdde)
         ### get dsdx and vol
         self.get_dsdx_and_vol()
         ### assemble to nodal force

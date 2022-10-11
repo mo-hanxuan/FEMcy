@@ -21,16 +21,7 @@ if __name__ == "__main__":
     inp = Inp_info(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
-    ele_type = list(eSets.keys())[0]
-    if ele_type[0:3] == "CPS":
-        material = Linear_isotropic_planeStress(modulus=inp.materials["Elastic"][0], 
-                                                poisson_ratio=inp.materials["Elastic"][1])
-    elif ele_type[0:3] == "CPE":
-        material = Linear_isotropic_planeStrain(modulus=inp.materials["Elastic"][0], 
-                                                poisson_ratio=inp.materials["Elastic"][1])
-    elif ele_type[0:3] == "C3D":
-        material = Linear_isotropic(modulus=inp.materials["Elastic"][0], 
-                                    poisson_ratio=inp.materials["Elastic"][1])
+    material = list(inp.materials.values())[0]
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
