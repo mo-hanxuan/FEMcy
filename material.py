@@ -305,17 +305,9 @@ class NeoHookean(object):
         
         for I in ti.grouped(deformationGradient):
             F = deformationGradient[I]
-            ### get the infinitesimal strain, E
-            E = (F + F.transpose()) / 2. - eye
-
-            ### get the PK2 stress, voigt notation has been used here, 
-            s_voigt = ddsdde[I] @ ti.Vector([E[0, 0], E[1, 1], E[2, 2],
-                                          2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
-            cauchy_stress[I] = ti.Matrix([ 
-                [s_voigt[0], s_voigt[3], s_voigt[4]],
-                [s_voigt[3], s_voigt[1], s_voigt[5]],
-                [s_voigt[4], s_voigt[5], s_voigt[2]]
-            ])
+            J = F.determinant()
+            B = F @ F.transpose()  # left Cauchy-Green Strain tensor
+            cauchy_stress[I] = 2. * C1 / J * (B - eye) + 2. * D1 * (J - 1.) * eye
         ### update material Jacobian if necessary
         # for I in ti.grouped(deformationGradient):
         #     ddsdde[I] = 4. * C1 * eye6 + 2. * D1 * volumeStiffness  # ∂Δσ/∂Δε, the material Jacobian
