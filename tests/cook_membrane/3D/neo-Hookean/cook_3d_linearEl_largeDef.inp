@@ -813,7 +813,7 @@ _right_face_S1, S1
 ** MATERIALS
 ** 
 *Material, name=Material-1
-*Hyperelastic, neo hooke
+*Hyperelastic, neo hooke 
     0.4, 0.05
 **  C1,  1./D1
 ** 
