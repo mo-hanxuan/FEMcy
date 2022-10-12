@@ -269,6 +269,10 @@ class Linear_isotropic:  # linear isotropic material for 3d case
 
 @ti.data_oriented
 class NeoHookean(object):
+    """elastic energy density ψ = C1 * (I1 - 3 - 2 * ln(J)) + D1 * (J - 1)**2,
+       σ = J^(-1) * ∂ψ/∂F * F^T = 2*C1*J^(-1)*(B - I) + 2*D1*(J-1)*I
+       https://en.wikipedia.org/wiki/Neo-Hookean_solid
+    """
     def __init__(self, C1: float=0.4, D1: float=0.00025):
         self.type = "3d"
         self.C1 = C1
