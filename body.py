@@ -16,7 +16,7 @@ from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
 
 @ti.data_oriented
 class Body:
-    def __init__(self, nodes: np.ndarray, elements: np.ndarray) -> None:
+    def __init__(self, nodes: np.ndarray, elements: np.ndarray, ELE) -> None:
         self.nodes = ti.Vector.field(len(nodes[0]), dtype=ti.f64, shape=(len(nodes), ))  # coordinates of all nodes
         self.elements = ti.Vector.field(len(elements[0]), dtype=ti.i32, shape=(len(elements), ))  # node number of each element
         self.nodes.from_numpy(nodes)
@@ -26,14 +26,7 @@ class Body:
         self.disp = ti.Vector.field(len(self.nodes[0]), ti.f64, shape=(len(nodes), ), needs_grad=True)
 
         ### must be modified latter (modified by using element type as key to get ELE)
-        if self.np_elements.shape[1] == 3:
-            self.ELE = Element_linear_triangular(); print("\033[32;1m Element_linear_triangular is used \033[0m")
-        elif self.np_elements.shape[1] == 6:
-            self.ELE = Element_quadratic_triangular(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
-        elif self.np_elements.shape[1] == 4:
-            self.ELE = Element_linear_tetrahedral(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
-        elif self.np_elements.shape[1] == 10:
-            self.ELE = Element_quadratic_tetrahedral(); print("\033[32;1m Element_quadratic_triangular is used \033[0m")
+        self.ELE = ELE
 
         ### the variables for visualization
         mesh, face2ele, surfaces = self.ELE.get_mesh(self.np_elements)
@@ -196,6 +189,7 @@ class Body:
     def get_boundary(self, redo=False):  # get the boundary of this body
         if not hasattr(self, "boundary") or redo:
             facets = self.ELE.facet_natural_coos.keys() # element boundaries 
+            print("\033[31;1m facets = {} \033[0m".format(facets))
             facetDic = {}
             for iele, ele in enumerate(self.np_elements):
                 for ifacet, facet in enumerate(facets):  

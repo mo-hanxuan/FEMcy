@@ -36,15 +36,8 @@ class System_of_equations:
         self.rhs = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # right hand side of the equation system
         self.dof = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom that needs to be solved
         
-        ### define the element types of the body, must be modified latter!!!
-        if body.np_elements.shape[1] == 3:
-            self.ELE = Element_linear_triangular()
-        elif body.np_elements.shape[1] == 6:
-            self.ELE = Element_quadratic_triangular()
-        elif body.np_elements.shape[1] == 4:
-            self.ELE = Element_linear_tetrahedral()
-        elif body.np_elements.shape[1] == 10:
-            self.ELE = Element_quadratic_tetrahedral()
+        ### define the element types of the body
+        self.ELE = body.ELE
 
         ### deformation gradient
         self.F = ti.Matrix.field(self.dm, self.dm, ti.f64, 

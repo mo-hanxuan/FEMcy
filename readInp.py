@@ -5,6 +5,7 @@
 import numpy as np
 import taichi as ti
 import os; import copy; import sys
+from element_linear_quadrilateral import Element_linear_quadrilateral
 from element_linear_tetrahedral import Element_linear_tetrahedral
 from element_linear_triangular import Element_linear_triangular
 from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
@@ -66,7 +67,7 @@ class Inp_info(object):
                 
                 if '*ELEMENT' in line or '*Element' in line or '*element' in line:
                     for type_ in ["C3D8", "C3D20", "C3D4", "C3D10", "B31", "C3D6", 
-                                "CPS3", "CPE3", 
+                                "CPS3", "CPE3", "CPE4", "CPS4", 
                                 "CPS6", "CPE6"]:  # the surported element types
                         if ("TYPE=" in line or "type=" in line) and type_ in line:
                             if type_ not in text:
@@ -87,7 +88,7 @@ class Inp_info(object):
             elif eType == "C3D20":
                 elements = elements.reshape((-1, 21))
                 elements = elements[:, 1:9]
-            elif eType == "C3D4":
+            elif eType in ["C3D4", "CPE4", "CPS4"]:
                 elements = elements.reshape((-1, 5))
                 elements = elements[:, 1:]
             elif eType == "C3D10":
@@ -113,11 +114,16 @@ class Inp_info(object):
         ### transform the dictionary to np.ndarray, so that all index starts with 0
         nodes, eSets = self.sequence_order_of_body(nodes, eSets)
 
+        ele_types = {"CPE3": Element_linear_triangular, "CPS3": Element_linear_triangular,
+                     "CPE4": Element_linear_quadrilateral, "CPS4": Element_linear_quadrilateral, 
+                    "CPS6": Element_quadratic_triangular, "CPE6": Element_quadratic_triangular,
+                    "C3D4": Element_linear_tetrahedral, "C3D10": Element_quadratic_tetrahedral}
+        self.ELE = ele_types[list(eSets.keys())[0]]()
+
         if len(eSets) == 1:
-            # return nodes, list(eSets.values())[0]
             return nodes, eSets
         else:
-            return nodes, eSets
+            raise ValueError("\033[31;1m multiple element types have not been supported now \033[0m")
 
 
     def read_set(self, fileName='donut.inp'):
@@ -190,12 +196,13 @@ class Inp_info(object):
         
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
-        ele_types = {"CPE3": Element_linear_triangular, "CPS3": Element_linear_triangular,
-                    "CPS6": Element_quadratic_triangular, "CPE6": Element_quadratic_triangular,
-                    "C3D4": Element_linear_tetrahedral, "C3D10": Element_quadratic_tetrahedral}
-        print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
+        # ele_types = {"CPE3": Element_linear_triangular, "CPS3": Element_linear_triangular,
+        #              "CPE4": Element_linear_quadrilateral, "CPS4": Element_linear_quadrilateral, 
+        #             "CPS6": Element_quadratic_triangular, "CPE6": Element_quadratic_triangular,
+        #             "C3D4": Element_linear_tetrahedral, "C3D10": Element_quadratic_tetrahedral}
+        # print("\033[35;1m {} \033[0m".format("noted: mixed types of elements have not been supported now."))
         ele_type = list(eSets.keys())[0]
-        ele = ele_types[ele_type]()
+        ele = self.ELE
         face2node = ele.inp_surface_num  # face to nodes
         for face_set in face_sets:
             dictList = copy.deepcopy(face_sets[face_set])
