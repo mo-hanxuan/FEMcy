@@ -23,7 +23,7 @@ class Element_linear_triangular(object):
         self.gaussPoints.from_numpy(np.array([[1./3., 1./3.], ]))
         self.gaussWeights = ti.field(dtype=ti.f64, shape=(1, ))
         self.gaussWeights.from_numpy(np.array([1./2., ]))
-        self.gaussPointNum_eachFacet = 1
+        self.integPointNum_eachFacet = 1
         self.gaussPoints_visualize = self.gaussPoints
 
         ### facets coordinates and normals for flux computation
@@ -35,7 +35,7 @@ class Element_linear_triangular(object):
             (1, 2): [[0., 0.5], ],  # only one gauss points for each facet
             (0, 2): [[0.5, 0.], ],
         }
-        self.facet_gauss_weights = {
+        self.facet_point_weights = {
             (0, 1): [1., ], 
             (1, 2): [1., ],  # only one gauss points for each facet
             (0, 2): [1., ],
@@ -84,13 +84,13 @@ class Element_linear_triangular(object):
         ])
 
 
-    def global_normal(self, nodes: np.ndarray, facet: list, gaussPointId=0):
+    def global_normal(self, nodes: np.ndarray, facet: list, integPointId=0):
         """
         deduce the normal vector in global coordinate for a given facet.
         input:
             nodes: global coordinates of all nodes of this element,
             facet: local node-idexes of the given facet
-            gaussPointId: the index of the gauss point of this facet
+            integPointId: the index of the gauss point of this facet
                             the archetecture here can be generalized to multiple Gauss points
         output: 
             global coordinates of this little facet, 
@@ -103,19 +103,19 @@ class Element_linear_triangular(object):
         ### facet normal from natural coordinates to global coordinates,  
         ### must maintain the perpendicular relation between normal and facet, 
         ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
-        natCoo = self.facet_natural_coos[facet][gaussPointId]
+        natCoo = self.facet_natural_coos[facet][integPointId]
         dsdn = self.dshape_dnat_pyscope(natCoo)
         dxdn = nodes.transpose() @ dsdn
 
-        natural_normal = self.facet_natural_normals[facet][gaussPointId]
+        natural_normal = self.facet_natural_normals[facet][integPointId]
         global_normal = natural_normal @ np.linalg.inv(dxdn)  # n_g = n_t @ (dx/dξ)^(-1)
         global_normal /= np.linalg.norm(global_normal) + 1.e-30  # normalize
 
         ### multiply the boundary size and Gauss Weight
-        area_x_gaussWeight = np.linalg.norm(nodes[facet[0]] - nodes[facet[1]]) * \
-                                self.facet_gauss_weights[facet][gaussPointId]
+        area_x_weight = np.linalg.norm(nodes[facet[0]] - nodes[facet[1]]) * \
+                                self.facet_point_weights[facet][integPointId]
 
-        return global_normal, area_x_gaussWeight
+        return global_normal, area_x_weight
 
 
     def strain_for_stiffnessMtrx(self, dsdx: np.ndarray):

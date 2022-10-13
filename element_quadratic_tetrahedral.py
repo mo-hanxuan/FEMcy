@@ -52,13 +52,13 @@ class Element_quadratic_tetrahedral(object):
             (0, 1, 2, 4, 5, 6): [[1., 0., 0.], [0., 0., 1.], [0., 0., 0.],
                                  [0.5, 0., 0.5], [0.5, 0., 0.], [0., 0., 0.5]],  # face (0, 1, 2)
         }
-        self.facet_gauss_weights = {
+        self.facet_point_weights = {
             (1, 2, 3, 5, 8, 9): [1./12., 1./12., 1./12., 1./4., 1./4., 1./4.],
             (0, 2, 3, 6, 7, 9): [1./12., 1./12., 1./12., 1./4., 1./4., 1./4.],
             (0, 1, 3, 4, 7, 8): [1./12., 1./12., 1./12., 1./4., 1./4., 1./4.],
             (0, 1, 2, 4, 5, 6): [1./12., 1./12., 1./12., 1./4., 1./4., 1./4.],
         }
-        self.gaussPointNum_eachFacet = len(list(self.facet_gauss_weights.values())[0])
+        self.integPointNum_eachFacet = len(list(self.facet_point_weights.values())[0])
 
         """ facet normals in natural coordinate,
             must points to the outside of the element"""
@@ -164,13 +164,13 @@ class Element_quadratic_tetrahedral(object):
         ])
 
 
-    def global_normal(self, nodes: np.ndarray, facet: list, gaussPointId=0):
+    def global_normal(self, nodes: np.ndarray, facet: list, integPointId=0):
             """
             deduce the normal vector in global coordinate for a given facet.
             input:
                 nodes: global coordinates of all nodes of this element,
                 facet: local node-idexes of the given facet
-                gaussPointId: the index of the gauss point of this facet
+                integPointId: the index of the gauss point of this facet
                                 the archetecture here can be generalized to multiple Gauss points
             output: 
                 global coordinates of this little facet, 
@@ -181,11 +181,11 @@ class Element_quadratic_tetrahedral(object):
             ### facet normal from natural coordinates to global coordinates,  
             ### must maintain the perpendicular relation between normal and facet, 
             ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
-            natCoo = self.facet_natural_coos[facet][gaussPointId]
+            natCoo = self.facet_natural_coos[facet][integPointId]
             dsdn = self.dshape_dnat_pyscope(natCoo)
             dxdn = nodes.transpose() @ dsdn
 
-            natural_normal = self.facet_natural_normals[facet][gaussPointId]
+            natural_normal = self.facet_natural_normals[facet][integPointId]
             global_normal = natural_normal @ np.linalg.inv(dxdn)  # n_g = n_t @ (dx/dξ)^(-1)
             global_normal /= np.linalg.norm(global_normal) + 1.e-30  # normalize
 
@@ -193,9 +193,9 @@ class Element_quadratic_tetrahedral(object):
             area = np.cross(nodes[facet[1]] - nodes[facet[0]], 
                             nodes[facet[2]] - nodes[facet[0]])
             area = 0.5 * np.linalg.norm(area)                
-            area_x_gaussWeight = area * self.facet_gauss_weights[facet][gaussPointId]
+            area_x_weight = area * self.facet_point_weights[facet][integPointId]
 
-            return global_normal, area_x_gaussWeight
+            return global_normal, area_x_weight
 
 
     @ti.func
@@ -255,7 +255,7 @@ class Element_quadratic_tetrahedral(object):
             faces = [ 
                 # ele[1], ele[2], ele[3],
                 (ele[1], ele[5], ele[8]), (ele[3], ele[8], ele[9]),
-                (ele[2], ele[9], ele[8]), (ele[5], ele[9], ele[8]),
+                (ele[2], ele[5], ele[9]), (ele[5], ele[9], ele[8]),
                 
                 # ele[0], ele[2], ele[3],
                 (ele[0], ele[6], ele[7]), (ele[3], ele[7], ele[9]),

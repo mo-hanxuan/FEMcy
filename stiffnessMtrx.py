@@ -270,18 +270,18 @@ class System_of_equations:
                 localNodes = np.array([body.np_nodes[node, :] for node in body.np_elements[ele, :]])
                 eleNodesList = body.np_elements[ele, :].tolist()
                 localFacet = [eleNodesList.index(i) for i in facet]
-                for gaussId in range(ELE.gaussPointNum_eachFacet):
-                    normal_vector, area_x_gaussWeight = ELE.global_normal(nodes=localNodes, 
-                                                                            facet=localFacet, 
-                                                                            gaussPointId=gaussId)
+                for integId in range(ELE.integPointNum_eachFacet):
+                    normal_vector, area_x_weight = ELE.global_normal(nodes=localNodes, 
+                                                                    facet=localFacet, 
+                                                                    integPointId=integId)
                     ### get the flux, which can also be interpreted as traction force
                     if len(load_dir) == 0: 
-                        flux = load_val * normal_vector * area_x_gaussWeight
+                        flux = load_val * normal_vector * area_x_weight
                     else:
-                        flux = load_val * load_dir * area_x_gaussWeight   
+                        flux = load_val * load_dir * area_x_weight   
 
                     ### get the sequence of this node in the element
-                    natCoo = ELE.facet_natural_coos[tuple(sorted(localFacet))][gaussId]
+                    natCoo = ELE.facet_natural_coos[tuple(sorted(localFacet))][integId]
                     nid = list(body.np_elements[ele, :]).index(node0)
                     shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid] 
 
