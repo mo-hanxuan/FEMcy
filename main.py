@@ -22,7 +22,6 @@ if __name__ == "__main__":
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0], ELE=inp.ELE)
     material = list(inp.materials.values())[0]
-    print("\033[31;1m inp.ELE = {} \033[0m".format(inp.ELE))
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
 
