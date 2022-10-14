@@ -196,6 +196,8 @@ class System_of_equations:
 
     def dirichletBC_forNewtonMethod(self, dirichletBCs):
         for dirichletBC in dirichletBCs:
+            self.dirichletBC_dof(dirichletBC["node_set"], dirichletBC["dof"], 
+                                dirichletBC["val"], dirichletBC["user"], self.time1)
             self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"], 
                                                     dm_specified=dirichletBC["dof"],
                                                     sval=dirichletBC["val"])
@@ -207,12 +209,6 @@ class System_of_equations:
         """apply dirichlet boundary condition to the body
            modify the sparse matrix and the residual force
            this is for Newton method, ref: https://scorec.rpi.edu/~granzb/notes/dbcs/dbcs.pdf """
-        
-        ## impose dirichlet BC at dof
-        for node_ in nodeSet:
-            node = nodeSet[node_]
-            i_global = node * self.dm + dm_specified
-            self.dof[i_global] = sval
         
         ### impose dirichlet BC at residual force and sparse matrix
         for node_ in nodeSet:
@@ -232,8 +228,20 @@ class System_of_equations:
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
     
 
-    @ti.kernel
     def dirichletBC_dof(self, 
+                    nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
+                    sval: float,  # specific value of dirichlet boundary condition
+                    user: bool,  # ture means using user defined boundary condition
+                    time: float, 
+                    ):
+        if not user:
+            self.dirichletBC_val(nodeSet, dm_specified, sval)
+        else:
+            self.dirichletBC_user(nodeSet, dm_specified, time)
+    
+
+    @ti.kernel
+    def dirichletBC_val(self, 
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     ):
@@ -242,6 +250,28 @@ class System_of_equations:
             node = nodeSet[node_]
             i_global = node * self.dm + dm_specified
             self.dof[i_global] = sval
+
+
+    @ti.kernel
+    def dirichletBC_user(self, 
+                    nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
+                    time: float,  # specific value of dirichlet boundary condition
+                    ):
+        """ user defined Dirichlet BC """
+        pi = 3.141592653589793
+        center = ti.Vector([40., 5., 0.])
+        for node_ in nodeSet:
+            node = nodeSet[node_]
+            i_global = node * self.dm + dm_specified
+            angle = time * pi
+            rota = ti.Matrix([ 
+                [ti.cos(angle), ti.sin(angle), 0.], 
+                [-ti.sin(angle), ti.cos(angle), 0.], 
+                [0., 0., 1.], 
+            ])
+            new_x = rota @ (self.nodes[node] - center) + center
+            disp = new_x - self.nodes[node]
+            self.dof[i_global] = disp[dm_specified]
     
 
     def neumannBC(self, load_facets, load_val: float, load_dir=np.array([])):  # Neumann boundary condition, 
@@ -430,7 +460,7 @@ class System_of_equations:
             for dirichletBC in dirichletBCs:
                 self.dirichletBC_dof(
                         dirichletBC["node_set"], dirichletBC["dof"], 
-                        dirichletBC["val"])
+                        dirichletBC["val"], dirichletBC["user"], self.time1)
 
 
     @ti.kernel 

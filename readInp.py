@@ -231,7 +231,10 @@ class Inp_info(object):
                     continue
                 if line[0] == "*":
                     if line[0:9] == "*Boundary":
-                        reading_data = True; continue
+                        reading_data = True
+                        if "user" in line: user = True
+                        else: user = False
+                        continue
                     else:
                         reading_data = False
                 if reading_data:
@@ -241,7 +244,7 @@ class Inp_info(object):
                     dof = int(splited_line[1])  # degree of freedom
                     disp = float(splited_line[3]) if len(splited_line) >= 4 else 0.
                     dirichlet_bc_info.append(
-                        {"node_set": self.node_sets[set_name], "dof": dof - 1, "val": disp})
+                        {"node_set": self.node_sets[set_name], "dof": dof - 1, "val": disp, "user": user})
         
         ### get the Neumann boundary condition
         neumann_bc_info = []
@@ -269,7 +272,6 @@ class Inp_info(object):
                         neumann_bc_info.append(
                             {"face_set": self.face_sets[set_name], "traction": surface_traction, 
                             "direction": np.array(direction)})
-
         return dirichlet_bc_info, neumann_bc_info
     
 
