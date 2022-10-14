@@ -28,10 +28,6 @@ class System_of_equations:
         self.body = body
         self.elements, self.nodes = body.elements, body.nodes 
         
-        self.sparseMtrx = ti.field(ti.f64)
-        sparseMtrx_components = ti.root.pointer(ti.ij, (body.nodes.shape[0] * body.dm, body.nodes.shape[0] * body.dm))
-        sparseMtrx_components.place(self.sparseMtrx)
-        
         ### sparseMtrx @ dof = rhs
         self.rhs = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # right hand side of the equation system
         self.dof = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom that needs to be solved
@@ -112,13 +108,11 @@ class System_of_equations:
 
     @ti.kernel
     def assemble_sparseMtrx(self, ):
-        dm, sparseMtrx, sparseMtrx_rowMajor, \
-        nodeEles, nodes, elements, ddsdde  = ti.static(
-            self.body.dm, self.sparseMtrx, self.sparseMtrx_rowMajor, \
+        dm, sparseMtrx_rowMajor, nodeEles, nodes, elements, ddsdde  = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, \
             self.nodeEles, self.nodes, self.elements, self.ddsdde)
-        ### refresh the sparse Matrix if it has been assemble in the previous increment
-        for i, j in sparseMtrx:
-            sparseMtrx[i, j] = 0.
+        
+        sparseMtrx_rowMajor.fill(0.)
         for node0 in nodes:
             for iele in range(nodeEles[0].n):
                 if nodeEles[node0][iele] != -1:
@@ -152,16 +146,10 @@ class System_of_equations:
                             i_global = Is[i_local]
                             for j_local in range(Js.n):
                                 j_global = Js[j_local]
-                                sparseMtrx[i_global, j_global] = \
-                                sparseMtrx[i_global, j_global] + dsdx_x_stress[i_local, j_local] * vol
-        ### transform the sparse matrix into row major
-        for i in sparseMtrx_rowMajor:
-            for j in range(sparseMtrx_rowMajor[0].n):
-                sparseMtrx_rowMajor[i][j] = 0.
-        for i, j in sparseMtrx:
-            j0 = self.sparseMatrix_get_j(i, j)
-            sparseMtrx_rowMajor[i][j0] = sparseMtrx[i, j]
-  
+                                j = self.sparseMatrix_get_j(i_global, j_global)
+                                sparseMtrx_rowMajor[i_global][j] = \
+                                sparseMtrx_rowMajor[i_global][j] + dsdx_x_stress[i_local, j_local] * vol
+
 
     @ti.kernel
     def dirichletBC_linearEquations(self, 
@@ -297,14 +285,6 @@ class System_of_equations:
                 j_local = j
         return j_local
         
-
-    @ti.kernel
-    def count_components_of_sparseMtrx(self, ) -> float:
-        count = 0
-        for i, j in self.sparseMtrx:
-            count += 1
-        return count
-    
 
     def check_sparseIJ(self, ):
         """check whether indexes repeatly appear in sparseIJ"""
