@@ -4,7 +4,7 @@ from readInp import *
 from material import *
 from body import Body
 from tiMath import field_abs_max, scalerField_from_matrixField, vectorField_max
-import time
+import time, os; os.system("")
 
 
 if __name__ == "__main__":

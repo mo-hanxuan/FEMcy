@@ -11,6 +11,7 @@ from element_linear_triangular import Element_linear_triangular
 from element_quadratic_triangular import Element_quadratic_triangular
 from element_linear_tetrahedral import Element_linear_tetrahedral
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
+import user_defined
 from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_multiply, field_norm, get_index_ti, vec_mul_voigtMtrx, field_abs_max
 
 
@@ -237,7 +238,8 @@ class System_of_equations:
         if not user:
             self.dirichletBC_val(nodeSet, dm_specified, sval)
         else:
-            self.dirichletBC_user(nodeSet, dm_specified, time)
+            user_defined.user_dirichletBC(
+                self.dof, nodeSet, self.dm, dm_specified, self.nodes, time)
     
 
     @ti.kernel
@@ -250,28 +252,6 @@ class System_of_equations:
             node = nodeSet[node_]
             i_global = node * self.dm + dm_specified
             self.dof[i_global] = sval
-
-
-    @ti.kernel
-    def dirichletBC_user(self, 
-                    nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
-                    time: float,  # specific value of dirichlet boundary condition
-                    ):
-        """ user defined Dirichlet BC """
-        pi = 3.141592653589793
-        center = ti.Vector([40., 5., 0.])
-        for node_ in nodeSet:
-            node = nodeSet[node_]
-            i_global = node * self.dm + dm_specified
-            angle = time * pi
-            rota = ti.Matrix([ 
-                [ti.cos(angle), ti.sin(angle), 0.], 
-                [-ti.sin(angle), ti.cos(angle), 0.], 
-                [0., 0., 1.], 
-            ])
-            new_x = rota @ (self.nodes[node] - center) + center
-            disp = new_x - self.nodes[node]
-            self.dof[i_global] = disp[dm_specified]
     
 
     def neumannBC(self, load_facets, load_val: float, load_dir=np.array([])):  # Neumann boundary condition, 
