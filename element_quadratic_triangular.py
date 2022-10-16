@@ -156,42 +156,10 @@ class Element_quadratic_triangular(object):
                                 self.facet_point_weights[facet][integPointId]
 
         return global_normal, area_x_weight
-
-
-    def strain_for_stiffnessMtrx(self, dsdx: np.ndarray):
-        """
-        strain for the stiffness matrix:
-        with shape = (n, m), 
-            n is the dimension of strian in Voigt notation, 
-                e.g., n = 3 for components including epsilon_11, epsilon_22 and gamma_12 (= 2 * epsilon_12)
-            m is the number of dof of this element, 
-                e.g., m = 12 for qudritic triangular element
-        """
-        strain0 = np.array([dsdx[0, 0], 0.,
-                            dsdx[1, 0], 0.,
-                            dsdx[2, 0], 0.,
-                            dsdx[3, 0], 0.,
-                            dsdx[4, 0], 0.,
-                            dsdx[5, 0], 0.])
-        
-        strain1 = np.array([0., dsdx[0, 1],
-                            0., dsdx[1, 1],
-                            0., dsdx[2, 1],
-                            0., dsdx[3, 1],
-                            0., dsdx[4, 1], 
-                            0., dsdx[5, 1]])
-        
-        gammaxy = np.array([dsdx[0, 1], dsdx[0, 0],
-                            dsdx[1, 1], dsdx[1, 0],
-                            dsdx[2, 1], dsdx[2, 0],
-                            dsdx[3, 1], dsdx[3, 0],
-                            dsdx[4, 1], dsdx[4, 0],
-                            dsdx[5, 1], dsdx[5, 0]])
-        return np.array([strain0, strain1, gammaxy])
     
 
     @ti.func
-    def strain_for_stiffnessMtrx_taichi(self, dsdx):
+    def strain_for_stiffnessMtrx(self, dsdx):
         return ti.Matrix([
             [dsdx[0, 0], 0.,
             dsdx[1, 0], 0.,

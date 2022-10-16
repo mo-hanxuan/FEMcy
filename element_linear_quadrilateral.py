@@ -134,7 +134,7 @@ class Element_linear_quadrilateral(object):
 
 
     @ti.func
-    def strain_for_stiffnessMtrx_taichi(self, dsdx):
+    def strain_for_stiffnessMtrx(self, dsdx):
         """
         strain for the stiffness matrix:
         with shape = (n, m), 
