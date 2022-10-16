@@ -117,25 +117,18 @@ class System_of_equations:
             for iele in range(nodeEles[0].n):
                 if nodeEles[node0][iele] != -1:
                     ele = nodeEles[node0][iele]
-
                     ### get the sequence of this node in the element
                     nid = get_index_ti(elements[ele], node0)
-                    if nid == -1:
-                        print("\033[31;1m Error, index not found. nid = -1 \033[0m")
 
-                    ### get the gradient of u, express it as the coefficients of u of different nodes
+                    ### integrate the contributions from different Gauss points
                     for igp in range(self.ELE.gaussPoints.shape[0]):
                         dsdx = self.dsdx[ele, igp]
-                        
-                        ### length of each component = dm * nodes_of_element
-                        strain = self.ELE.strain_for_stiffnessMtrx_taichi(dsdx)
-                        ### C : ε， each component is a vector with dimension s, thus maybe can not use operation @ directly
+                        strain = self.ELE.strain_for_stiffnessMtrx(dsdx)
+                        ### S = C·B, i.e., the elastic constants multiply the strain matrix
                         stress_voigt = ddsdde[ele, igp] @ strain
-
-                        ### dsdx mutiplies the stress
+                        ### dsdx mutiplies the stress (∇N·C·B = BT·C·B)
                         dsdx_x_stress = vec_mul_voigtMtrx(dsdx[nid, :], stress_voigt)
-                        
-                        ### get the volume related to this Gauss point
+                        ### the updated volume related to this Gauss point
                         vol = self.vol[ele, igp]
 
                         ### integrate to the large sparse matrix
