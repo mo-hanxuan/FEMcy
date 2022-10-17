@@ -101,9 +101,31 @@ class System_of_equations:
 
     @ti.kernel
     def ddsdde_init(self, ):
-        """get the ddsdde at each integration point of each element"""
+        """get the ddsdde (material Jacobian, ∂Δσ/∂Δε) 
+           at each integration point of each element"""
         for ele, igp in self.ddsdde:
             self.ddsdde[ele, igp] = self.C
+
+
+    @ti.kernel 
+    def get_dsdx_and_vol(self, ):
+        """update dsdx (∇N) and volume before assemble stiffness matrix"""
+        dm, elements, nodes, dof, gaussPoints  = ti.static(
+            self.dm, self.elements, self.nodes, self.dof, self.ELE.gaussPoints)
+        for ele in self.elements:
+            localNodes = ti.Matrix([[0. for i in range(dm)] for j in range(elements[0].n)], ti.f64)
+            for i in range(localNodes.n):
+                for j in range(localNodes.m):
+                    localNodes[i, j] = nodes[elements[ele][i]][j] + \
+                                        dof[elements[ele][i] * dm + j]  # nodes coos at current configuration
+            
+            ### get dsdx and vol of each integration point
+            for igp in range(gaussPoints.shape[0]):
+                gp = gaussPoints[igp]
+                dsdn = self.ELE.dshape_dnat(gp)  # derivative of shape function with respect to natural coodinates
+                dnatdx = (localNodes.transpose() @ dsdn).inverse()  # at current configuration
+                self.dsdx[ele, igp] = dsdn @ dnatdx  # dshape / dx, gradient at current configuration
+                self.vol[ele, igp] = (localNodes.transpose() @ dsdn).determinant() * self.ELE.gaussWeights[igp]
 
 
     def assemble_sparseMtrx(self, ):
@@ -116,16 +138,15 @@ class System_of_equations:
 
     @ti.kernel
     def assemble_stiffnessMtrx(self, ):
-        """assemble sitffness matrix, parallel by integration points"""
-        dm, sparseMtrx_rowMajor, elements, ddsdde = ti.static(
-            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde)
+        """assemble sitffness matrix, parallel by integration points, 
+           update self.dsdx (∇N) and self.vol before assemble this"""
+        dm, sparseMtrx_rowMajor, elements, ddsdde, vol, dsdx = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde, self.vol, self.dsdx)
         
         sparseMtrx_rowMajor.fill(0.)
-        for ele, igp in self.vol:  # parallel by integration points
-            vol = self.vol[ele, igp]  # the updated volume at Gauss point
-            dsdx = self.dsdx[ele, igp]  # the updated gradient of shape function
-            strain = self.ELE.strain_for_stiffnessMtrx(dsdx)  # B, stands for Bu = ε
-            stress_voigt = ddsdde[ele, igp] @ strain  # S = C·B
+        for ele, igp in vol:  # parallel by integration points
+            strain = self.ELE.strainMtrx(dsdx[ele, igp])  # strain B(∇N), B·u = ε
+            stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
             bcb = strain.transpose() @ stress_voigt  # stiffness, BT·C·B
             
             ### integrate to the large sparse matrix
@@ -137,23 +158,24 @@ class System_of_equations:
                     for j_local in range(Js.n):
                         j_global = Js[j_local]
                         j = self.sparseMatrix_get_j(i_global, j_global)
+                        ### atomic add to related node
                         sparseMtrx_rowMajor[i_global][j] += \
-                            bcb[node*dm+i_local, j_local] * vol  # atomic add to node
+                            bcb[node*dm+i_local, j_local] * vol[ele, igp]
 
 
     @ti.kernel
     def assemble_stiffnessMtrx_faster(self, ):
         """assemble sitffness matrix, parallel by elements, 
-           compiles faster by ∇N·C·B instead of BT·C·B"""
-        dm, sparseMtrx_rowMajor, elements, ddsdde = ti.static(
-            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde)
+           compiles faster by ∇N·C·B instead of BT·C·B
+           (also, update self.dsdx (∇N) and self.vol before assemble this)"""
+        dm, sparseMtrx_rowMajor, elements, ddsdde, vol = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde, self.vol)
         
         sparseMtrx_rowMajor.fill(0.)
-        for ele, igp in self.vol:  # parallel by integration points
-            vol = self.vol[ele, igp]  # the updated volume at Gauss point
-            dsdx = self.dsdx[ele, igp]  # the updated gradient of shape function
-            strain = self.ELE.strain_for_stiffnessMtrx(dsdx)  # B, stands for Bu = ε
-            stress_voigt = ddsdde[ele, igp] @ strain  # S = C·B
+        for ele, igp in vol:  # parallel by integration points
+            dsdx = self.dsdx[ele, igp]  # ∇N, the updated grad of shape function
+            strain = self.ELE.strainMtrx(dsdx)  # strain B(∇N), B·u = ε
+            stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
 
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
@@ -166,8 +188,9 @@ class System_of_equations:
                     for j_local in range(Js.n):
                         j_global = Js[j_local]
                         j = self.sparseMatrix_get_j(i_global, j_global)
+                        ### atomic add to related node
                         sparseMtrx_rowMajor[i_global][j] += \
-                            dsdx_x_stress[i_local, j_local] * vol  # atomic add to node
+                            dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
 
 
     @ti.kernel
@@ -501,26 +524,6 @@ class System_of_equations:
         self.get_dsdx_and_vol()
         ### assemble to nodal force
         self.assemble_nodal_force_GN_kernel()
-
-
-    @ti.kernel 
-    def get_dsdx_and_vol(self, ):
-        dm, elements, nodes, dof, gaussPoints  = ti.static(
-            self.dm, self.elements, self.nodes, self.dof, self.ELE.gaussPoints)
-        for ele in self.elements:
-            localNodes = ti.Matrix([[0. for i in range(dm)] for j in range(elements[0].n)], ti.f64)
-            for i in range(localNodes.n):
-                for j in range(localNodes.m):
-                    localNodes[i, j] = nodes[elements[ele][i]][j] + \
-                                        dof[elements[ele][i] * dm + j]  # nodes coos at current configuration
-            
-            ### get dsdx and vol of each integration point
-            for igp in range(gaussPoints.shape[0]):
-                gp = gaussPoints[igp]
-                dsdn = self.ELE.dshape_dnat(gp)  # derivative of shape function with respect to natural coodinates
-                dnatdx = (localNodes.transpose() @ dsdn).inverse()  # at current configuration
-                self.dsdx[ele, igp] = dsdn @ dnatdx  # dshape / dx, gradient at current configuration
-                self.vol[ele, igp] = (localNodes.transpose() @ dsdn).determinant() * self.ELE.gaussWeights[igp]
 
     
     @ti.kernel
