@@ -11,6 +11,7 @@ from element_linear_triangular import Element_linear_triangular
 from element_quadratic_triangular import Element_quadratic_triangular
 from element_linear_tetrahedral import Element_linear_tetrahedral
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
+import user_defined
 from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_multiply, field_norm, get_index_ti, vec_mul_voigtMtrx, field_abs_max
 
 
@@ -226,6 +227,8 @@ class System_of_equations:
 
     def dirichletBC_forNewtonMethod(self, dirichletBCs):
         for dirichletBC in dirichletBCs:
+            self.dirichletBC_dof(dirichletBC["node_set"], dirichletBC["dof"], 
+                                dirichletBC["val"], dirichletBC["user"], self.time1)
             self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"], 
                                                     dm_specified=dirichletBC["dof"],
                                                     sval=dirichletBC["val"])
@@ -237,12 +240,6 @@ class System_of_equations:
         """apply dirichlet boundary condition to the body
            modify the sparse matrix and the residual force
            this is for Newton method, ref: https://scorec.rpi.edu/~granzb/notes/dbcs/dbcs.pdf """
-        
-        ## impose dirichlet BC at dof
-        for node_ in nodeSet:
-            node = nodeSet[node_]
-            i_global = node * self.dm + dm_specified
-            self.dof[i_global] = sval
         
         ### impose dirichlet BC at residual force and sparse matrix
         for node_ in nodeSet:
@@ -262,8 +259,21 @@ class System_of_equations:
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
     
 
-    @ti.kernel
     def dirichletBC_dof(self, 
+                    nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
+                    sval: float,  # specific value of dirichlet boundary condition
+                    user: bool,  # ture means using user defined boundary condition
+                    time: float, 
+                    ):
+        if not user:
+            self.dirichletBC_val(nodeSet, dm_specified, sval)
+        else:
+            user_defined.user_dirichletBC(
+                self.dof, nodeSet, self.dm, dm_specified, self.nodes, time)
+    
+
+    @ti.kernel
+    def dirichletBC_val(self, 
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     ):
@@ -326,7 +336,7 @@ class System_of_equations:
             if self.sparseIJ[i_global][j + 1] == j_global:
                 j_local = j
         return j_local
-        
+    
 
     def check_sparseIJ(self, ):
         """check whether indexes repeatly appear in sparseIJ"""
@@ -452,7 +462,7 @@ class System_of_equations:
             for dirichletBC in dirichletBCs:
                 self.dirichletBC_dof(
                         dirichletBC["node_set"], dirichletBC["dof"], 
-                        dirichletBC["val"])
+                        dirichletBC["val"], dirichletBC["user"], self.time1)
 
 
     @ti.kernel 
