@@ -159,7 +159,7 @@ class Element_quadratic_triangular(object):
     
 
     @ti.func
-    def strain_for_stiffnessMtrx(self, dsdx):
+    def strainMtrx(self, dsdx):
         return ti.Matrix([
             [dsdx[0, 0], 0.,
             dsdx[1, 0], 0.,

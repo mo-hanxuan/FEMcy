@@ -199,7 +199,7 @@ class Element_quadratic_tetrahedral(object):
 
 
     @ti.func
-    def strain_for_stiffnessMtrx(self, dsdx):
+    def strainMtrx(self, dsdx):
         """
         strain for the stiffness matrix:
         with shape = (n, m), 
