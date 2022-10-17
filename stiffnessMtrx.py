@@ -104,44 +104,70 @@ class System_of_equations:
         """get the ddsdde at each integration point of each element"""
         for ele, igp in self.ddsdde:
             self.ddsdde[ele, igp] = self.C
-    
+
+
+    def assemble_sparseMtrx(self, ):
+        tiMatrixShape = self.elements[0].n * self.dm
+        if tiMatrixShape <= 10:  # involve small ti.Matrix()
+            self.assemble_stiffnessMtrx()
+        else:  # involve large ti.Matrix(), use faster version to save compile time
+            self.assemble_stiffnessMtrx_faster()
+
 
     @ti.kernel
-    def assemble_sparseMtrx(self, ):
-        dm, sparseMtrx_rowMajor, nodeEles, nodes, elements, ddsdde  = ti.static(
-            self.body.dm, self.sparseMtrx_rowMajor, \
-            self.nodeEles, self.nodes, self.elements, self.ddsdde)
+    def assemble_stiffnessMtrx(self, ):
+        """assemble sitffness matrix, parallel by integration points"""
+        dm, sparseMtrx_rowMajor, elements, ddsdde = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde)
         
         sparseMtrx_rowMajor.fill(0.)
-        for node0 in nodes:
-            for iele in range(nodeEles[0].n):
-                if nodeEles[node0][iele] != -1:
-                    ele = nodeEles[node0][iele]
-                    ### get the sequence of this node in the element
-                    nid = get_index_ti(elements[ele], node0)
+        for ele, igp in self.vol:  # parallel by integration points
+            vol = self.vol[ele, igp]  # the updated volume at Gauss point
+            dsdx = self.dsdx[ele, igp]  # the updated gradient of shape function
+            strain = self.ELE.strain_for_stiffnessMtrx(dsdx)  # B, stands for Bu = ε
+            stress_voigt = ddsdde[ele, igp] @ strain  # S = C·B
+            bcb = strain.transpose() @ stress_voigt  # stiffness, BT·C·B
+            
+            ### integrate to the large sparse matrix
+            for node in range(elements[ele].n):
+                node0 = elements[ele][node]  # global node index
+                Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
+                for i_local in range(dm):
+                    i_global = node0 * dm + i_local
+                    for j_local in range(Js.n):
+                        j_global = Js[j_local]
+                        j = self.sparseMatrix_get_j(i_global, j_global)
+                        sparseMtrx_rowMajor[i_global][j] += \
+                            bcb[node*dm+i_local, j_local] * vol  # atomic add to node
 
-                    ### integrate the contributions from different Gauss points
-                    for igp in range(self.ELE.gaussPoints.shape[0]):
-                        dsdx = self.dsdx[ele, igp]
-                        strain = self.ELE.strain_for_stiffnessMtrx(dsdx)
-                        ### S = C·B, i.e., the elastic constants multiply the strain matrix
-                        stress_voigt = ddsdde[ele, igp] @ strain
-                        ### dsdx mutiplies the stress (∇N·C·B = BT·C·B)
-                        dsdx_x_stress = vec_mul_voigtMtrx(dsdx[nid, :], stress_voigt)
-                        ### the updated volume related to this Gauss point
-                        vol = self.vol[ele, igp]
 
-                        ### integrate to the large sparse matrix
-                        Is = ti.Vector([node0 * dm + i for i in range(dm)])
-                        Js_ = elements[ele] * dm  ## need to be modified here
-                        Js = ti.Vector([x + i for x in Js_ for i in range(dm)])
-                        for i_local in range(dm):
-                            i_global = Is[i_local]
-                            for j_local in range(Js.n):
-                                j_global = Js[j_local]
-                                j = self.sparseMatrix_get_j(i_global, j_global)
-                                sparseMtrx_rowMajor[i_global][j] = \
-                                sparseMtrx_rowMajor[i_global][j] + dsdx_x_stress[i_local, j_local] * vol
+    @ti.kernel
+    def assemble_stiffnessMtrx_faster(self, ):
+        """assemble sitffness matrix, parallel by elements, 
+           compiles faster by ∇N·C·B instead of BT·C·B"""
+        dm, sparseMtrx_rowMajor, elements, ddsdde = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde)
+        
+        sparseMtrx_rowMajor.fill(0.)
+        for ele, igp in self.vol:  # parallel by integration points
+            vol = self.vol[ele, igp]  # the updated volume at Gauss point
+            dsdx = self.dsdx[ele, igp]  # the updated gradient of shape function
+            strain = self.ELE.strain_for_stiffnessMtrx(dsdx)  # B, stands for Bu = ε
+            stress_voigt = ddsdde[ele, igp] @ strain  # S = C·B
+
+            ### integrate to the large sparse matrix
+            for node in range(elements[ele].n):
+                ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
+                dsdx_x_stress = vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
+                node0 = elements[ele][node]  # global node index
+                Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
+                for i_local in range(dm):
+                    i_global = node0 * dm + i_local
+                    for j_local in range(Js.n):
+                        j_global = Js[j_local]
+                        j = self.sparseMatrix_get_j(i_global, j_global)
+                        sparseMtrx_rowMajor[i_global][j] += \
+                            dsdx_x_stress[i_local, j_local] * vol  # atomic add to node
 
 
     @ti.kernel
