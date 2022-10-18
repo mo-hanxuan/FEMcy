@@ -9,7 +9,7 @@ from readInp import *
 from material import *
 from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
-import user_defined
+import user_defined as ud
 import tiMath as tm
 
 
@@ -266,7 +266,7 @@ class System_of_equations:
         if not user:
             self.dirichletBC_val(nodeSet, dm_specified, sval)
         else:
-            user_defined.user_dirichletBC(
+            ud.user_dirichletBC(
                 self.dof, nodeSet, self.dm, dm_specified, self.nodes, time)
     
 

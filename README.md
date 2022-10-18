@@ -103,7 +103,7 @@ you can see that the results (max y-displacement) show huge differences between 
 + linear quadrilateral element (CPS4 and CPE4)
 + quadratic quadrilateral element (CPS8 and CPE8)
 + linear tetrahedral element (C3D4)
-+ quadratic tetrahedral element (C3D10)
++ quadratic tetrahedral element (C3D10, noted: this could take 5 minutes of compile time due to large ti.Matrix)
 ## Future work
 + accelerate by TaichiMesh.
 + more types of boundary conditions, such as periodic-boundary-condition (PBC) by Lagrangian-multiplier method is on-going
