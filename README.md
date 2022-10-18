@@ -110,7 +110,7 @@ you can see that the results (max y-displacement) show huge differences between 
 
 Run `Python main.py` and then insert this .inp file to the command line: `tests/twist/twist_plate_C3D4.inp`
 
-![](./README.assets/twist_plate_C3D4.gif)
+![twistPlate](README.assets/twist_plate_C3D4.gif)
 
 <center>Fig. 4 Twist plate with C3D4 element, colored by Mises stress.  </center>
 
