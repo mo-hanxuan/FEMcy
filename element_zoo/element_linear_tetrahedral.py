@@ -17,7 +17,7 @@ import taichi as ti
 """ 
 @ti.data_oriented
 class Element_linear_tetrahedral(object):
-    def __init__(self, gauss_points_count=1):
+    def __init__(self):
         self.dm = 3  # spatial dimensions
 
         ### Gauss points for linear tetrahedral element

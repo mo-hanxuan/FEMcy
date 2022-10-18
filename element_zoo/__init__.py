@@ -1,0 +1,8 @@
+import sys
+sys.path.append("./element_zoo")
+from element_linear_quadrilateral import Element_linear_quadrilateral
+from element_linear_tetrahedral import Element_linear_tetrahedral
+from element_linear_triangular import Element_linear_triangular
+from element_quadratic_quadrilateral import Element_quadratic_quadrilateral
+from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
+from element_quadratic_triangular import Element_quadratic_triangular

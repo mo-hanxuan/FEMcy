@@ -7,18 +7,16 @@ import time; from typing import Tuple, Union
 from body import Body
 from readInp import *
 from material import *
-from element_linear_triangular import Element_linear_triangular
-from element_quadratic_triangular import Element_quadratic_triangular
-from element_linear_tetrahedral import Element_linear_tetrahedral
+from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined
-from tiMath import a_equals_b_plus_c_mul_d, a_from_b, c_equals_a_minus_b, field_multiply, field_norm, get_index_ti, vec_mul_voigtMtrx, field_abs_max
+import tiMath as tm
 
 
 @ti.data_oriented
 class System_of_equations:
     """
-    the system of equations that applies to solve the linear equation systems (can be modified to nonlinear system)
+    use stiffness matrix and rhs (right hand side) to solve dof (degree of freedom)
     including:
         sparseMtrx: the sparse stiffness matrix utilized to solve the dofs
         rhs: right hand side of the equation system
@@ -181,7 +179,7 @@ class System_of_equations:
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
                 ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
-                dsdx_x_stress = vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
+                dsdx_x_stress = tm.vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
                 node0 = elements[ele][node]  # global node index
                 Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
                 for i_local in range(dm):
@@ -364,7 +362,7 @@ class System_of_equations:
             self.dof = self.PCG.x
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
-            c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
+            tm.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
         
         return self.PCG
 
@@ -551,7 +549,7 @@ class System_of_equations:
                     ele = nodeEles[node0][iele]
 
                     ### get the sequence of this node in the element
-                    nid = get_index_ti(self.elements[ele], node0)
+                    nid = tm.get_index_ti(self.elements[ele], node0)
                     if nid == -1:
                         print("\033[31;1m Error, index not found. nid = -1 \033[0m")
 
@@ -606,7 +604,7 @@ class System_of_equations:
             if not converged:
                 self.time1 = self.time0
                 self.dt /= 4.
-                a_from_b(self.dof, self.dof_old)
+                tm.a_from_b(self.dof, self.dof_old)
                 kinc -= 1
                 if self.dt < min_inc:
                     print("\033[31;1m allowable minimum dt is reached, "
@@ -616,7 +614,7 @@ class System_of_equations:
             ### increast dt if fast convergence occurs in previous dt
             if newton_loop <= 8:
                 self.dt = min(self.dt * 1.5, max_inc)
-            a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
+            tm.a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
             self.time0 = self.time1
     
     
@@ -627,9 +625,9 @@ class System_of_equations:
 
         def inside_relaxation():
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
-            c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+            tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            residual = field_norm(self.residual_nodal_force)
+            residual = tm.field_norm(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
                 self.show_window(window, save2path, newton_loop, relax_loop)
@@ -662,9 +660,9 @@ class System_of_equations:
             
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
-            c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+            tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            pre_residual = field_norm(self.residual_nodal_force)
+            pre_residual = tm.field_norm(self.residual_nodal_force)
             if not hasattr(self, "ini_residual"):
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
@@ -685,9 +683,9 @@ class System_of_equations:
 
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
-                    c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+                    tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-                    residual = field_norm(self.residual_nodal_force)
+                    residual = tm.field_norm(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
                         self.show_window(window, save2path, newton_loop, relax_loop=0)
@@ -702,10 +700,10 @@ class System_of_equations:
                             break
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
                         ### self.dof -= relaxation * solver.x
-                        a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
+                        tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
                         residual = inside_relaxation()
                         if residual > new_residual:
-                            a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
+                            tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
                             residual = inside_relaxation()
                             relaxation *= 0.5
                     
@@ -717,8 +715,8 @@ class System_of_equations:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
                         ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
-                        a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
-                        field_multiply(solver.x, relaxation)
+                        tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
+                        tm.field_multiply(solver.x, relaxation)
                         residual = inside_relaxation()
 
                     pre_residual = residual
@@ -761,7 +759,7 @@ if __name__ == "__main__":
     equationSystem.compute_strain_stress()
     stress = equationSystem.mises_stress.to_numpy()
     print("\033[35;1m maximum mises stress = {} MPa \033[0m".format(abs(stress).max()))
-    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(field_abs_max(equationSystem.dof)))
+    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(tm.field_abs_max(equationSystem.dof)))
     
     windowLength = 512
     gui = ti.GUI('show body', res=(windowLength, windowLength))

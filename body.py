@@ -8,10 +8,7 @@ import tiMath
 from colorBar import getColor
 
 from readInp import Inp_info
-from element_linear_triangular import Element_linear_triangular
-from element_linear_tetrahedral import Element_linear_tetrahedral
-from element_quadratic_triangular import Element_quadratic_triangular
-from element_quadratic_tetrahedral import Element_quadratic_tetrahedral
+from element_zoo import *
 
 
 @ti.data_oriented
