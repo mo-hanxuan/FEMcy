@@ -97,14 +97,20 @@ you can see that the results (max y-displacement) show huge differences between 
     > ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 
     FEMcy result can be compared with Abaqus result: ./tests/abaqus_test\beam_deflection\load800_largeDef\beamDeflec_quadPSE_largeD_load800_fixX.odb
-### 3. Cook's membrane
-Model definition including geometry and boundary condition is referred to [CoFEA](https://cofea.readthedocs.io/en/latest/benchmarks/002-cook-membrane/model.html). You can find the corresponding .inp files here in folder **./tests/cook_membrane**. Run **./main.py** to process these .inp files and you can see the corresponding results. 
+## currently supported Elements
++ linear trianguler element (CPE3 and CPS3)
++ quadratic trianguler element (CPE6 and CPS6)
++ linear quadrilateral element (CPS4 and CPE4)
++ quadratic quadrilateral element (CPS8 and CPE8)
++ linear tetrahedral element (C3D4)
++ quadratic tetrahedral element (C3D10)
 ## Future work
++ accelerate by TaichiMesh.
 + more types of boundary conditions, such as periodic-boundary-condition (PBC) by Lagrangian-multiplier method is on-going
 + multiphysics, general PDE solver
 + dynamic analysis
 + flexible adaptive-mesh (local-refinement dynamically)
-+ contact and friction (maybe powered by the fasionable [IPC (incremental potential contact)](https://ipc-sim.github.io/) someday)
++ contact and friction by penalty method or Lagrange multiplier method.
 + support more file-formats for pre-processing, such as Ansys input file format. Or even develop a pre-processing GUI for you to define the geometry, mesh, material, boundary conditions, etc.
 + support more sophisticated post-processing of the output data, such as output data file for VTK visulization or ParaView visulization. 
 
