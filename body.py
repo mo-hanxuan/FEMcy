@@ -113,12 +113,20 @@ class Body:
             xmax = max(self.nodes[i][0] for i in range(self.nodes.shape[0]))
             ymin = min(self.nodes[i][1] for i in range(self.nodes.shape[0]))
             ymax = max(self.nodes[i][1] for i in range(self.nodes.shape[0]))
-            visualizeRatio = lengthScale / max(xmax - xmin, ymax - ymin) / 10.
-            self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
-            self.visualizeRatio = visualizeRatio
+            if self.dm == 2:
+                zmin, zmax = 0., 0.
+            elif self.dm == 3:
+                zmin = min(self.nodes[i][2] for i in range(self.nodes.shape[0]))
+                zmax = max(self.nodes[i][2] for i in range(self.nodes.shape[0]))
+            self.length = max(xmax - xmin, ymax - ymin, zmax -zmin)
+            self.visualizeRatio = lengthScale / self.length / 10.
+            self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax = \
+                xmin, xmax, ymin, ymax, zmin, zmax
+            self.center = np.array([
+                (self.xmin + self.xmax) / 2., (self.ymin + self.ymax) / 2., (self.zmin + self.zmax) / 2.
+            ]) * self.visualizeRatio
         
-        center = np.array([(self.xmin + self.xmax) / 2., (self.ymin + self.ymax) / 2., 0.]) * self.visualizeRatio
-        length = max(self.xmax - self.xmin, self.ymax - self.ymin)
+        center, length = self.center, self.length
 
         # window = ti.ui.Window('show body', (windowLength, windowLength))
         canvas = window.get_canvas()
@@ -132,8 +140,12 @@ class Body:
         if not hasattr(self, "camera"):
             camera = ti.ui.Camera(); scene = ti.ui.Scene()
             self.camera = camera; self.scene = scene
-            camera.position(center[0], center[1] + 0.1 * length, 100.)  # if camera is far away from the object, you can't see any thing
-            camera.lookat(center[0], center[1] + 0.1 * length, center[2])
+            if self.dm == 2:
+                camera.position(center[0], center[1] + 0.1 * length, 100.)  # if camera is far away from the object, you can't see any thing
+                camera.lookat(center[0], center[1] + 0.1 * length, center[2])
+            else:  # self.dm == 3
+                camera.position(length, length, length) 
+                camera.lookat(center[0], center[1], center[2])
             camera.up(0., 1., 0.)
         else:
             camera, scene = self.camera, self.scene
