@@ -1,4 +1,4 @@
-"""some user defined subroutines, 
+"""some APIs for user defined subroutines, 
    which can be specified by the user"""
 import taichi as ti
 
