@@ -9,6 +9,14 @@ FEMcy is a finite element solver for **structural analysis** in **continuum mech
 + many types of elements including second-order elements
 + Dirichlet boundary condition (BC) and Neumann BC are enabled
 
+## currently supported Elements
++ linear trianguler element (CPE3 and CPS3)
++ quadratic trianguler element (CPE6 and CPS6)
++ linear quadrilateral element (CPS4 and CPE4)
++ quadratic quadrilateral element (CPS8 and CPE8)
++ linear tetrahedral element (C3D4)
++ quadratic tetrahedral element (C3D10, noted: this could take 5 minutes of compile time due to large ti.Matrix)
+
 ## Installation and Usage
 1. install Python (3.8+) and pip, then install Taichi and numpy
 > pip install numpy <br>
@@ -97,13 +105,15 @@ you can see that the results (max y-displacement) show huge differences between 
     > ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
 
     FEMcy result can be compared with Abaqus result: ./tests/abaqus_test\beam_deflection\load800_largeDef\beamDeflec_quadPSE_largeD_load800_fixX.odb
-## currently supported Elements
-+ linear trianguler element (CPE3 and CPS3)
-+ quadratic trianguler element (CPE6 and CPS6)
-+ linear quadrilateral element (CPS4 and CPE4)
-+ quadratic quadrilateral element (CPS8 and CPE8)
-+ linear tetrahedral element (C3D4)
-+ quadratic tetrahedral element (C3D10, noted: this could take 5 minutes of compile time due to large ti.Matrix)
+
+### 3. Twist Plate
+
+Run `Python main.py` and then insert this .inp file to the command line: `tests\twist\twist_plate_C3D4.inp`
+
+![](./README.assets\twist_plate_C3D4.gif)
+
+<center>Fig. 4 Twist plate with C3D4 element, colored by Mises stress.  </center>
+
 ## Future work
 + accelerate by TaichiMesh.
 + more types of boundary conditions, such as periodic-boundary-condition (PBC) by Lagrangian-multiplier method is on-going
