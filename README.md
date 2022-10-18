@@ -108,7 +108,7 @@ you can see that the results (max y-displacement) show huge differences between 
 
 ### 3. Twist Plate
 
-Run `Python main.py` and then insert this .inp file to the command line: `tests\twist\twist_plate_C3D4.inp`
+Run `Python main.py` and then insert this .inp file to the command line: `tests/twist/twist_plate_C3D4.inp`
 
 ![](./README.assets/twist_plate_C3D4.gif)
 
