@@ -108,11 +108,15 @@ you can see that the results (max y-displacement) show huge differences between 
 
 ### 3. Twist Plate
 
-Run `Python main.py` and then insert this .inp file to the command line: `tests/twist/twist_plate_C3D4.inp`
+Run `Python main.py` and then insert the .inp file `tests/twist/twist_plate_C3D4.inp` or `tests/twist/twist_plate_C3D10.inp` to the command line.
 
-![twistPlate](README.assets/twist_plate_C3D4.gif)
+| C3D4 linear Tetrahedral | C3D10 quadratic tetrahedral |
+| :----------------------------------------------------------: | :----------------------------------------------------------: |
 
-<center>Fig. 4 Twist plate with C3D4 element, colored by Mises stress.  </center>
+| <img src="README.assets/twist_plate_C3D4.gif" width="350" /> | <img src="README.assets/twist_plate_C3D10.gif" width="350" /> |
+| ---------------------------------------------------------- | --------------------------------------------------- |
+
+<center>Fig. 4 Twist plate with C3D4 and C3D10 element respectively, colored by Mises stress.  </center>
 
 ## Future work
 + accelerate by TaichiMesh.
