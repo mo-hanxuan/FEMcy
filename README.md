@@ -113,7 +113,6 @@ Run `Python main.py` and then insert the .inp file `tests/twist/twist_plate_C3D4
 | C3D4 linear Tetrahedral | C3D10 quadratic tetrahedral |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | <img src="README.assets/twist_plate_C3D4.gif" width="350" /> | <img src="README.assets/twist_plate_C3D10.gif" width="350" /> |
-| ---------------------------------------------------------- | --------------------------------------------------- |
 
 <center>Fig. 4 Twist plate with C3D4 and C3D10 element respectively, colored by Mises stress.  </center>
 
