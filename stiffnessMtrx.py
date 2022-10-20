@@ -112,7 +112,7 @@ class System_of_equations:
         dm, elements, nodes, dof, gaussPoints  = ti.static(
             self.dm, self.elements, self.nodes, self.dof, self.ELE.gaussPoints)
         for ele in self.elements:
-            localNodes = ti.Matrix([[0. for i in range(dm)] for j in range(elements[0].n)], ti.f64)
+            localNodes = ti.Matrix.zero(ti.f64, elements[0].n, dm)
             for i in range(localNodes.n):
                 for j in range(localNodes.m):
                     localNodes[i, j] = nodes[elements[ele][i]][j] + \
@@ -468,12 +468,12 @@ class System_of_equations:
         """get the deformation gradient of each integration point"""
         dm, elements, nodes, gaussPoints = ti.static(
             self.dm, self.elements, self.nodes, self.ELE.gaussPoints)
-        eye = ti.Matrix([[0. for _ in range(dm)] for _ in range(dm)])
+        eye = ti.Matrix.zero(ti.f64, dm, dm)
         for i in range(eye.n):
             eye[i, i] = 1.
         for ele in elements:
-            local_us = ti.Matrix([[0. for _ in range(dm)] for _ in range(elements[0].n)], ti.f64)
-            local_nodes = ti.Matrix([[0. for _ in range(dm)] for _ in range(elements[0].n)], ti.f64)
+            local_us = ti.Matrix.zero(ti.f64, elements[0].n, dm)
+            local_nodes = ti.Matrix.zero(ti.f64, elements[0].n, dm)
             for node_ in range(elements[0].n):
                 node = elements[ele][node_]
                 for j in ti.static(range(dm)):
@@ -496,7 +496,7 @@ class System_of_equations:
            the strain here is just for visulization, not for constitutive"""
         dm, elements, gaussPoints, strain = ti.static(
             self.dm, self.elements, self.ELE.gaussPoints, self.strain)
-        eye = ti.Matrix([[0. for _ in range(dm)] for _ in range(dm)])
+        eye = ti.Matrix.zero(ti.f64, dm, dm)
         for i in range(eye.n):
             eye[i, i] = 1.
         
@@ -513,7 +513,7 @@ class System_of_equations:
            Green strain for large deformation"""
         dm, elements, gaussPoints, strain = ti.static(
             self.dm, self.elements, self.ELE.gaussPoints, self.strain)
-        eye = ti.Matrix([[0. for _ in range(dm)] for _ in range(dm)])
+        eye = ti.Matrix.zero(ti.f64, dm, dm)
         for i in range(eye.n):
             eye[i, i] = 1.
         
@@ -604,7 +604,7 @@ class System_of_equations:
             if not converged:
                 self.time1 = self.time0
                 self.dt /= 4.
-                tm.a_from_b(self.dof, self.dof_old)
+                self.dof.copy_from(self.dof_old)
                 kinc -= 1
                 if self.dt < min_inc:
                     print("\033[31;1m allowable minimum dt is reached, "
@@ -614,7 +614,7 @@ class System_of_equations:
             ### increast dt if fast convergence occurs in previous dt
             if newton_loop <= 8:
                 self.dt = min(self.dt * 1.5, max_inc)
-            tm.a_from_b(self.dof_old, self.dof)  # self.dof_old[:] = self.dof[:]
+            self.dof_old.copy_from(self.dof)
             self.time0 = self.time1
     
     

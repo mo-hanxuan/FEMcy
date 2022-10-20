@@ -47,7 +47,7 @@ class Linear_isotropic_planeStress:
             F = deformationGradient[I]
 
             ### get the deformation gradient at 3d
-            F_3d = ti.Matrix([[0. for _ in range(3)] for _ in range(3)])
+            F_3d = ti.Matrix.zero(ti.f64, 3, 3)
             F_3d[0:2, 0:2] = F[0:2, 0:2]
             F_3d[2, 2] = -nu / (1. - nu) * (F[0, 0] + F[1, 1] - 2.) + 1.  # deformation at z coordinate
 
@@ -84,7 +84,7 @@ class Linear_isotropic_planeStress:
             F = deformationGradient[I]
 
             ### get the deformation gradient at 3d
-            F_3d = ti.Matrix([[0. for _ in range(3)] for _ in range(3)])
+            F_3d = ti.Matrix.zero(ti.f64, 3, 3)
             F_3d[0:2, 0:2] = F[0:2, 0:2]
             F_3d[2, 2] = -nu / (1. - nu) * (F[0, 0] + F[1, 1] - 2.) + 1.  # deformation at z coordinate
 

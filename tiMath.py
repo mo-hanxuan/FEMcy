@@ -17,13 +17,6 @@ def a_equals_b_plus_c_mul_d(a:ti.template(), b:ti.template(), c: float, d: ti.te
 
 
 @ti.kernel
-def a_from_b(a: ti.template(), b: ti.template()):
-    """a = b"""
-    for I in ti.grouped(a):
-        a[I] = b[I]
-
-
-@ti.kernel
 def field_abs_max(f: ti.template()) -> float:
     """get the maximum absolute value of a scaler field"""
     ans = 0.
@@ -160,7 +153,7 @@ def vec_mul_voigtMtrx(vec, mtrx):  # vector (line of a matrix) multiply voigt ma
             vec[0] * mtrx[4, :] + vec[1] * mtrx[5, :] + vec[2] * mtrx[2, :], 
         ]
     """
-    ans = ti.Matrix([[0. for _ in range(mtrx.m)] for _ in range(vec.m)])
+    ans = ti.Matrix.zero(ti.f64, vec.m, mtrx.m) #([[0. for _ in range(mtrx.m)] for _ in range(vec.m)])
     if vec.m == 2:
         ans[0, :] = vec[0] * mtrx[0, :] + vec[1] * mtrx[2, :]
         ans[1, :] = vec[0] * mtrx[2, :] + vec[1] * mtrx[1, :]
