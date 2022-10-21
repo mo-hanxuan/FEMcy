@@ -206,6 +206,24 @@ class Element_linear_triangular(object):
         return mesh, face2ele, surfaces
 
 
+    @ti.kernel
+    def extrapolate(self, internal_vals: ti.template(), nodal_vals: ti.template()):
+        """extrapolate the internal Gauss points' vals to the nodal vals
+           no averaging is performing here, we want to get the nodal vals patch by patch,
+           so the each patch maintain the original values at Gauss points, but different patches
+           have different values at their share nodes
+        input:
+            internal_vals: scaler field with shape = (elements.shape[0], gaussPoints.shape[0])
+            nodal_vals: vector field with shape = (elements.shape[0],), and the vector has dimension of elements.shape[0]
+        update:
+            nodal_vals is updated after this function
+        
+        noted: for linear element, we simply just extrapolate the center point to all nodes
+        """
+        for ele in nodal_vals:
+            nodal_vals[ele].fill(internal_vals[ele, 0])
+
+
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
 
