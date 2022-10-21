@@ -106,6 +106,30 @@ class Linear_isotropic_planeStress:
             cauchy_stress[I][0:2, 0:2] = stress[0:2, 0:2]
     
 
+    @ti.func
+    def elasticEnergyDensity(self, deformationGradient):
+        nu = ti.static(self.poisson_ratio)
+        eye_3d = ti.Matrix([ 
+            [1., 0., 0.],
+            [0., 1., 0.],
+            [0., 0., 1.]
+        ])
+        F = deformationGradient
+
+        ### get the deformation gradient at 3d
+        F_3d = ti.Matrix.zero(ti.f64, 3, 3)
+        F_3d[0:2, 0:2] = F[0:2, 0:2]
+        F_3d[2, 2] = -nu / (1. - nu) * (F[0, 0] + F[1, 1] - 2.) + 1.  # deformation at z coordinate
+
+        ### get the Green Strain, E
+        E = (F_3d.transpose() @ F_3d - eye_3d) / 2.
+
+        ### energy density
+        E_voigt = ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                            2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
+        return E_voigt.dot(self.C_6x6 @ E_voigt) / 2.
+    
+
 @ti.data_oriented
 class Linear_isotropic_planeStrain:
     def __init__(self, modulus: float, poisson_ratio: float):
@@ -186,6 +210,26 @@ class Linear_isotropic_planeStrain:
             ])
             ### get the Cauchy stress  
             cauchy_stress[I] = F @ pk2 @ F.transpose() / F.determinant()
+    
+
+    @ti.func
+    def elasticEnergyDensity(self, deformationGradient):
+        eye = ti.Matrix([ 
+            [1., 0., 0.],
+            [0., 1., 0.],
+            [0., 0., 1.]
+        ])
+        F = ti.Matrix.zero(ti.f64, 3, 3)
+        F[0:2, 0:2] = deformationGradient[0:2, 0:2]
+        F[2, 2] = 1.
+        
+        ### get the Green Strain, E
+        E = (F.transpose() @ F - eye) / 2.
+
+        ### elastic energy density
+        E_voigt = ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                            2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
+        return E_voigt.dot(self.C_6x6 @ E_voigt) / 2.
 
 
 @ti.data_oriented

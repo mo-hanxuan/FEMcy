@@ -45,6 +45,9 @@ class System_of_equations:
                         shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0])) 
         self.mises_stress = ti.field(ti.f64, 
                         shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
+        self.elsEngDens = ti.field(ti.f64,  # elastic energy density
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))  
+        self.elsEng = ti.field(ti.f64, shape=())  # total elastic energy
 
         ### variables related to geometric nonlinear                              
         self.nodal_force = ti.field(ti.f64, shape=(self.dm * self.body.nodes.shape[0]))  
@@ -523,6 +526,23 @@ class System_of_equations:
                 strain[ele, igp] = (F.transpose() @ F - eye) / 2.
 
 
+    def get_elasEng(self, ):
+        """get elatic energy (density and total energy)"""
+        self.get_deformation_gradient()
+        self.get_elasEng_kernel()
+    
+    @ti.kernel
+    def get_elasEng_kernel(self, ):
+        """first, get elatic energy density"""
+        for I in ti.grouped(self.elsEngDens):
+            self.elsEngDens[I] = self.material.elasticEnergyDensity(
+                self.F[I])
+        """then, get total elastic energy"""
+        self.elsEng[None] = 0.
+        for I in ti.grouped(self.elsEngDens):
+            self.elsEng[None] += self.elsEngDens[I] * self.vol[I]
+
+
     def assemble_nodal_force_GN(self, ):
         """assemble the nodal force for GN (geometric nonlinear)"""
         ### get all stresses at integration points by constitutive, modified latter by automatically change consititutive
@@ -725,13 +745,15 @@ class System_of_equations:
 
     def show_window(self, window, save2path: str=None, newton_loop: int=0, relax_loop: int=0):
         self.compute_strain_stress()
-        if not isinstance(self.ELE, Element_linear_triangular):
-            self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
-            self.body.show(window, self.dof, self.nodal_vals)
-        else: 
-            self.body.show2d(window, disp=self.dof, 
-                            field=self.mises_stress.to_numpy(dtype=np.float64), 
-                            save2path="{}_{}_{}_{}.png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
+        self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
+        self.body.show(window, self.dof, self.nodal_vals)
+        # if not isinstance(self.ELE, Element_linear_triangular):
+        #     self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
+        #     self.body.show(window, self.dof, self.nodal_vals)
+        # else: 
+        #     self.body.show2d(window, disp=self.dof, 
+        #                     field=self.mises_stress.to_numpy(dtype=np.float64), 
+        #                     save2path="{}_{}_{}_{}.png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
 
 
 if __name__ == "__main__":
