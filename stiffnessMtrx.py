@@ -599,10 +599,7 @@ class System_of_equations:
         ### whether show the body during time step and Newton's step
         if show_newton_steps and self.geometric_nonlinear:
             windowLength = 512
-            if not isinstance(self.ELE, Element_linear_triangular):
-                window = ti.ui.Window('show body', (windowLength, windowLength))
-            else:
-                window = ti.GUI('show body', res=(windowLength, windowLength))
+            window = ti.ui.Window('show body', (windowLength, windowLength))
         else: window = None
 
         ### now start the time increments
@@ -693,7 +690,7 @@ class System_of_equations:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
             else:
                 newton_loop = -1
-                while pre_residual / (self.ini_residual + 1.e-30) >= 0.01:  # not convergent
+                while pre_residual / (self.ini_residual + 1.e-30) >= 0.005:  # not convergent
                     
                     newton_loop += 1
                     if newton_loop >= 24:
@@ -731,7 +728,7 @@ class System_of_equations:
                     relax_loop = -1; relaxation = 0.5
                     while residual > pre_residual:
                         relax_loop += 1
-                        if relax_loop >= 2:
+                        if relax_loop >= 4:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
                         ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
