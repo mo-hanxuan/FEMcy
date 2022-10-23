@@ -1546,7 +1546,7 @@ _Surf-1_S1, S1
 ** 
 *Step, name=Step-1, nlgeom=YES
 *Static
-0.025, 1., 1e-05, 0.025
+0.05, 1., 1e-05, 0.05
 ** 
 ** BOUNDARY CONDITIONS
 ** 

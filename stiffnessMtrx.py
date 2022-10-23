@@ -597,7 +597,7 @@ class System_of_equations:
         boundary_conditions = {"neumannBCs": neumannBCs, "dirichletBCs": dirichletBCs}
 
         ### whether show the body during time step and Newton's step
-        if show_newton_steps and self.geometric_nonlinear:
+        if self.geometric_nonlinear:
             windowLength = 512
             window = ti.ui.Window('show body', (windowLength, windowLength))
         else: window = None
@@ -633,6 +633,11 @@ class System_of_equations:
                 self.dt = min(self.dt * 1.5, max_inc)
             self.dof_old.copy_from(self.dof)
             self.time0 = self.time1
+
+            ### visualize and image IO
+            if self.geometric_nonlinear:
+                fileName = f"{save2path}_time{self.time1:.4f}.png" if save2path else None
+                self.show_window(window, fileName)
     
     
     def advance_inc(self, inp: Inp_info, boundary_conditions: dict, 
@@ -647,7 +652,8 @@ class System_of_equations:
             residual = tm.field_norm(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
-                self.show_window(window, save2path, newton_loop, relax_loop)
+                fileName = self.write_image_name(save2path, newton_loop, relax_loop)
+                self.show_window(window, fileName)
             return residual
         
 
@@ -684,13 +690,14 @@ class System_of_equations:
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
             if show_newton_steps:
-                self.show_window(window, save2path, newton_loop=0, relax_loop=0)
+                fileName = self.write_image_name(save2path, 0, 0)
+                self.show_window(window, fileName)
 
             if self.ini_residual < 1.e-9:
                 print("\033[32;1m good! nonlinear converge! \033[0m")
             else:
                 newton_loop = -1
-                while pre_residual / (self.ini_residual + 1.e-30) >= 0.005:  # not convergent
+                while pre_residual / (self.ini_residual + 1.e-30) >= 0.01:  # not convergent
                     
                     newton_loop += 1
                     if newton_loop >= 24:
@@ -705,7 +712,8 @@ class System_of_equations:
                     residual = tm.field_norm(self.residual_nodal_force)
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
-                        self.show_window(window, save2path, newton_loop, relax_loop=0)
+                        fileName = self.write_image_name(save2path, newton_loop, 0)
+                        self.show_window(window, fileName)
 
                     ### boost Newton's method by going a larger step if residual force is declining
                     relax_loop = -1; relaxation = 1.
@@ -728,7 +736,7 @@ class System_of_equations:
                     relax_loop = -1; relaxation = 0.5
                     while residual > pre_residual:
                         relax_loop += 1
-                        if relax_loop >= 4:
+                        if relax_loop >= 2:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
                         ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
@@ -740,18 +748,27 @@ class System_of_equations:
             return True, newton_loop  # Newton's method converges
 
 
-    def show_window(self, window, save2path: str=None, newton_loop: int=0, relax_loop: int=0):
+    def show_window(self, window, save2path: str=None):
         self.compute_strain_stress()
         self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
-        self.body.show(window, self.dof, self.nodal_vals)
-        # if not isinstance(self.ELE, Element_linear_triangular):
-        #     self.ELE.extrapolate(self.mises_stress, self.nodal_vals)
-        #     self.body.show(window, self.dof, self.nodal_vals)
-        # else: 
-        #     self.body.show2d(window, disp=self.dof, 
-        #                     field=self.mises_stress.to_numpy(dtype=np.float64), 
-        #                     save2path="{}_{}_{}_{}.png".format(save2path, self.time1, newton_loop, relax_loop) if save2path else None)
+        self.body.show(window, self.dof, self.nodal_vals, save2path)
 
+
+    def write_image_name(self, save2path:str, newton_loop:int, relax_loop:int):
+        writeFrequency = 1
+        if not save2path:
+            writeImage = False
+        else:
+            if newton_loop % writeFrequency == 0 and relax_loop % writeFrequency == 0:
+                writeImage = True
+            else:
+                writeImage = False
+        if writeImage:
+            fileName = f"{save2path}_{self.time0:.4f}_{newton_loop}_{relax_loop}_.png"
+        else:
+            fileName = None
+        return fileName
+        
 
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
