@@ -100,7 +100,7 @@ class Body:
         gui.show(save2path)
     
 
-    def show(self, window: ti.ui.Window, disp, vals):
+    def show(self, window: ti.ui.Window, disp, vals, save2path: str=None):
 
         windowLength = 1024
         lengthScale = min(windowLength, 512)  # lengthScale is the length of the body after 
@@ -144,7 +144,7 @@ class Body:
                 camera.position(center[0], center[1] + 0.1 * length, 100.)  # if camera is far away from the object, you can't see any thing
                 camera.lookat(center[0], center[1] + 0.1 * length, center[2])
             else:  # self.dm == 3
-                camera.position(length, length, length) 
+                camera.position(length * 0.7, length * 0.7, length * 0.7) 
                 camera.lookat(center[0], center[1], center[2])
             camera.up(0., 1., 0.)
         else:
@@ -160,6 +160,8 @@ class Body:
         canvas.scene(scene)
             
         ### show the window
+        if save2path:
+            window.save_image(save2path)
         window.show()
     
 
