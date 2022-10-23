@@ -311,6 +311,24 @@ class Linear_isotropic:  # linear isotropic material for 3d case
             cauchy_stress[I] = F @ pk2 @ F.transpose() / F.determinant()
 
 
+    @ti.func
+    def elasticEnergyDensity(self, deformationGradient):
+        eye = ti.Matrix([ 
+            [1., 0., 0.],
+            [0., 1., 0.],
+            [0., 0., 1.]
+        ])
+        F = deformationGradient
+        
+        ### get the Green Strain, E
+        E = (F.transpose() @ F - eye) / 2.
+
+        ### elastic energy density
+        E_voigt = ti.Vector([E[0, 0], E[1, 1], E[2, 2],
+                            2. * E[0, 1], 2. * E[2, 0], 2. * E[1, 2]])
+        return E_voigt.dot(self.C @ E_voigt) / 2.
+
+
 @ti.data_oriented
 class NeoHookean(object):
     """elastic energy density ψ = C1 * (I1 - 3 - 2 * ln(J)) + D1 * (J - 1)**2,
@@ -376,3 +394,12 @@ class NeoHookean(object):
         ### update material Jacobian if necessary
         # for I in ti.grouped(deformationGradient):
         #     ddsdde[I] = 4. * C1 * self.eye6 + 2. * D1 * self.volumeStiffness  # ∂Δσ/∂Δε, the material Jacobian
+
+
+    @ti.func
+    def elasticEnergyDensity(self, deformationGradient):
+        """elastic energy density ψ = C1 * (I1 - 3 - 2 * ln(J)) + D1 * (J - 1)**2 """
+        F = deformationGradient
+        J = F.determinant()
+        B = F @ F.transpose()  # left Cauchy-Green Strain tensor
+        return self.C1 * (B.trace() - 3. - 2. * ti.log(J)) + self.D1 * (J - 1.)**2
