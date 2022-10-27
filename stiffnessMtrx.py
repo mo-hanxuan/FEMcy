@@ -602,6 +602,14 @@ class System_of_equations:
             window = ti.ui.Window('show body', (windowLength, windowLength))
         else: window = None
 
+        ### visualize and image IO at the initial step
+        if self.geometric_nonlinear:
+            fileName = f"{save2path}_time{self.time0:.4f}.png" if save2path else None
+            self.show_window(window, fileName)
+            if show_newton_steps:
+                fileName = self.write_image_name(save2path, 0, 0)
+                self.show_window(window, fileName)
+
         ### now start the time increments
         kinc = -1  # the number of time increment
         while self.time1 < max_time:
@@ -652,7 +660,7 @@ class System_of_equations:
             residual = tm.field_norm(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
-                fileName = self.write_image_name(save2path, newton_loop, relax_loop)
+                fileName = self.write_image_name(save2path, newton_loop+1, relax_loop+1)
                 self.show_window(window, fileName)
             return residual
         
@@ -690,7 +698,7 @@ class System_of_equations:
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
             if show_newton_steps:
-                fileName = self.write_image_name(save2path, 0, 0)
+                fileName = self.write_image_name(save2path, 1, 1)
                 self.show_window(window, fileName)
 
             if self.ini_residual < 1.e-9:
@@ -710,9 +718,12 @@ class System_of_equations:
                     tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
                     residual = tm.field_norm(self.residual_nodal_force)
+                    if np.isnan(residual):
+                        print("NaN occurs, automatically recompute with smaller time step")
+                        return False, newton_loop
                     print("\033[40;33;1m newton_loop = {}, residual_nodal_force = {} \033[0m".format(newton_loop, residual))
                     if show_newton_steps:
-                        fileName = self.write_image_name(save2path, newton_loop, 0)
+                        fileName = self.write_image_name(save2path, newton_loop+1, 1)
                         self.show_window(window, fileName)
 
                     ### boost Newton's method by going a larger step if residual force is declining
@@ -755,7 +766,7 @@ class System_of_equations:
 
 
     def write_image_name(self, save2path:str, newton_loop:int, relax_loop:int):
-        writeFrequency = 1
+        writeFrequency = 2
         if not save2path:
             writeImage = False
         else:
