@@ -3,7 +3,7 @@ from stiffnessMtrx import System_of_equations
 from readInp import *
 from material import *
 from body import Body
-from tiMath import field_abs_max, scalerField_from_matrixField, vectorField_max
+from tiGadgets import field_abs_max, scalerField_from_matrixField, vectorField_max
 import time, os; os.system("")
 
 

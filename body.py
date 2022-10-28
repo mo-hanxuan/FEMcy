@@ -4,7 +4,7 @@
 import numpy as np
 import taichi as ti
 
-import tiMath
+import tiGadgets as tg
 from colorBar import getColor
 
 from readInp import Inp_info
@@ -77,7 +77,7 @@ class Body:
             field = field.reshape(-1)
             if len(field) < len(a):  # e.g., quadratic element, color-triangles more than integration points
                 field_ = np.zeros(len(a), dtype=field.dtype)
-                num1, num2 = tiMath.fraction_reduction(len(field), len(a))
+                num1, num2 = tg.fraction_reduction(len(field), len(a))
                 field_ = field_.reshape((-1, num2)); field = field.reshape((-1, num1))
                 for i in range(field.shape[0]):
                     field_[i, 0:num1] = field[i, 0:num1]
@@ -261,14 +261,14 @@ class Body:
         elements, vertex_val = ti.static(self.elements, self.vertex_val)
         for vertex in vertex_val:
             ele = self.mesh2ele[vertex]
-            local_i = tiMath.get_index_ti(elements[ele], self.mesh_id[vertex])
+            local_i = tg.get_index_ti(elements[ele], self.mesh_id[vertex])
             vertex_val[vertex] = vals[ele][local_i]
     
 
     def get_vertex_color(self, minVal_input:float=None, maxVal_input:float=None):
         ### get the min and max val
-        minVal = tiMath.field_min(self.vertex_val) if minVal_input == None else minVal_input
-        maxVal = tiMath.field_max(self.vertex_val) if maxVal_input == None else maxVal_input
+        minVal = tg.field_min(self.vertex_val) if minVal_input == None else minVal_input
+        maxVal = tg.field_max(self.vertex_val) if maxVal_input == None else maxVal_input
         ### get the color of each vertex
         self.get_vertex_color_kernel(minVal, maxVal)
 

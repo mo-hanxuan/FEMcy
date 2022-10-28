@@ -1,4 +1,4 @@
-"""some functions for mathmatical usages"""
+"""some gadgets for mathmatical usages"""
 import taichi as ti
 
 
