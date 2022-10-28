@@ -10,7 +10,7 @@ from material import *
 from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined as ud
-import tiMath as tm
+import tiGadgets as tg
 
 
 @ti.data_oriented
@@ -182,7 +182,7 @@ class System_of_equations:
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
                 ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
-                dsdx_x_stress = tm.vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
+                dsdx_x_stress = tg.vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
                 node0 = elements[ele][node]  # global node index
                 Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
                 for i_local in range(dm):
@@ -365,7 +365,7 @@ class System_of_equations:
             self.dof = self.PCG.x
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
-            tm.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
+            tg.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
         
         return self.PCG
 
@@ -569,7 +569,7 @@ class System_of_equations:
                     ele = nodeEles[node0][iele]
 
                     ### get the sequence of this node in the element
-                    nid = tm.get_index_ti(self.elements[ele], node0)
+                    nid = tg.get_index_ti(self.elements[ele], node0)
                     if nid == -1:
                         print("\033[31;1m Error, index not found. nid = -1 \033[0m")
 
@@ -655,9 +655,9 @@ class System_of_equations:
 
         def inside_relaxation():
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
-            tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+            tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            residual = tm.field_norm(self.residual_nodal_force)
+            residual = tg.field_norm(self.residual_nodal_force)
             print("\033[32;1m residual = {} \033[0m".format(residual))
             if show_newton_steps:
                 fileName = self.write_image_name(save2path, newton_loop+1, relax_loop+1)
@@ -691,9 +691,9 @@ class System_of_equations:
             
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
-            tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+            tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-            pre_residual = tm.field_norm(self.residual_nodal_force)
+            pre_residual = tg.field_norm(self.residual_nodal_force)
             if not hasattr(self, "ini_residual"):
                 self.ini_residual = pre_residual
             print("\033[40;33;1m initial residual_nodal_force = {} \033[0m".format(self.ini_residual))
@@ -715,9 +715,9 @@ class System_of_equations:
 
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
-                    tm.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
+                    tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
-                    residual = tm.field_norm(self.residual_nodal_force)
+                    residual = tg.field_norm(self.residual_nodal_force)
                     if np.isnan(residual):
                         print("NaN occurs, automatically recompute with smaller time step")
                         return False, newton_loop
@@ -736,10 +736,10 @@ class System_of_equations:
                             break
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
                         ### self.dof -= relaxation * solver.x
-                        tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
                         residual = inside_relaxation()
                         if residual > new_residual:
-                            tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
+                            tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
                             residual = inside_relaxation()
                             relaxation *= 0.5
                     
@@ -751,8 +751,8 @@ class System_of_equations:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
                         ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
-                        tm.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
-                        tm.field_multiply(solver.x, relaxation)
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
+                        tg.field_multiply(solver.x, relaxation)
                         residual = inside_relaxation()
 
                     pre_residual = residual
@@ -806,7 +806,7 @@ if __name__ == "__main__":
     equationSystem.compute_strain_stress()
     stress = equationSystem.mises_stress.to_numpy()
     print("\033[35;1m maximum mises stress = {} MPa \033[0m".format(abs(stress).max()))
-    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(tm.field_abs_max(equationSystem.dof)))
+    print("\033[40;33;1m max dof (disp) = {} \033[0m".format(tg.field_abs_max(equationSystem.dof)))
     
     windowLength = 512
     gui = ti.GUI('show body', res=(windowLength, windowLength))
