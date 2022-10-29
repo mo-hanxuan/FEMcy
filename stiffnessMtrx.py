@@ -11,6 +11,8 @@ from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined as ud
 import tiGadgets as tg
+import scipy.sparse as sp
+import scipy.sparse.linalg as sl
 
 
 @ti.data_oriented
@@ -88,6 +90,7 @@ class System_of_equations:
         ### init the row major form of sparse matrix
         print("\033[32;1m shape of the sparseIJ is {} \033[0m".format(self.sparseIJ.shape))
         self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, shape=(self.sparseIJ.shape[0], ))
+        self.du = ti.field(ti.f64, shape=(self.nodes.shape[0] * self.dm))
 
         ### initial variables related to time increments
         self.time0 = 0.; self.time1 = 0.
@@ -193,6 +196,48 @@ class System_of_equations:
                         ### atomic add to related node
                         sparseMtrx_rowMajor[i_global][j] += \
                             dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
+    
+
+    def solve_by_scipy(self, ):
+        ### conver some field to np.array
+        sparseIJ = self.sparseIJ.to_numpy()
+        sparseMtrx_rowMajor = self.sparseMtrx_rowMajor.to_numpy()
+
+        if not hasattr(self, "rows"):
+            self.rows, self.cols = [], []
+            for i in range(sparseIJ.shape[0]):
+                for j_ in range(sparseIJ[i, 0]):
+                    j = sparseIJ[i, j_ + 1]
+                    self.rows.append(i)
+                    self.cols.append(j)
+            self.rows, self.cols = np.array(self.rows), np.array(self.cols)
+            self.vals = np.zeros(shape=(self.rows.shape[0],), dtype=np.float64)
+
+        ### fetch the sparse matrix
+        id = -1
+        for i in range(sparseIJ.shape[0]):
+            for j_ in range(sparseIJ[i, 0]):
+                j = sparseIJ[i, j_ + 1]
+                id += 1
+                self.vals[id] = sparseMtrx_rowMajor[i, j_]
+        K = sp.coo_matrix((self.vals, (self.rows, self.cols)), 
+                          shape=(sparseIJ.shape[0], 
+                                 sparseIJ.shape[0]), dtype=np.float64)
+        K = sp.csr_matrix(K)
+
+        ### solve the sparse matrix equation AX = B
+        if not self.geometric_nonlinear:
+            self.du.from_numpy(sl.spsolve(K, self.rhs.to_numpy()))
+        else:
+            self.du.from_numpy(sl.spsolve(K, self.residual_nodal_force.to_numpy()))
+
+        if not self.geometric_nonlinear:
+            self.dof = self.du
+        else:
+            ### self.dof = self.dof - solver.x (in Newton's method)
+            tg.c_equals_a_minus_b(self.dof, self.dof, self.du)
+        
+        return self.du
 
 
     @ti.kernel
@@ -684,7 +729,7 @@ class System_of_equations:
         self.impose_boundary_condition(boundary_conditions)
         
         if geometric_nonlinear == False:  # small deformation
-            self.solve_dof()
+            self.solve_by_scipy()
             return True, 0
         
         else:  # large deformation, use newton method
@@ -711,7 +756,7 @@ class System_of_equations:
                     if newton_loop >= 24:
                         return False, newton_loop  # Newton's method has not converged
 
-                    solver = self.solve_dof()  # dofs = dofs - K^(-1) * residual
+                    self.solve_by_scipy()  # dofs = dofs - K^(-1) * residual
 
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
@@ -735,11 +780,11 @@ class System_of_equations:
                         if relax_loop >= 10:
                             break
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
-                        ### self.dof -= relaxation * solver.x
-                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, solver.x)
+                        ### self.dof -= relaxation * self.du
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, self.du)
                         residual = inside_relaxation()
                         if residual > new_residual:
-                            tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, solver.x)
+                            tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, self.du)
                             residual = inside_relaxation()
                             relaxation *= 0.5
                     
@@ -750,9 +795,9 @@ class System_of_equations:
                         if relax_loop >= 2:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
-                        ### self.dof += (1. - relaxation) * solver.x, i.e., recover dof, then update with relaxation  
-                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), solver.x)
-                        tg.field_multiply(solver.x, relaxation)
+                        ### self.dof += (1. - relaxation) * self.du, i.e., recover dof, then update with relaxation  
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), self.du)
+                        tg.field_multiply(self.du, relaxation)
                         residual = inside_relaxation()
 
                     pre_residual = residual
