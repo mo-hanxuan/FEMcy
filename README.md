@@ -30,7 +30,7 @@ FEMcy is a finite element solver for **structural analysis** in **continuum mech
 4. Pre-processing: choose an .inp file (the Abaqus-input-file-format) which defines the geometry, mesh, material and boundary condition for structual analysis. The .inp file can be obtained by Abaqus pre-processing GUI. 
    For example, insert the path and inp file name to the command line:
 
-    >  <font color=green>**please give the .inp format's input file path and name:** </font> ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
+    >  <font color=green>**please give the .inp format's input file path and name:** </font> tests/beam_deflection/load800_freeEnd_largeDef/beamDeflec_quadPSE_largeD_load800.inp
 
     more examples of inp files can be found at ./tests folder <br>
 5. after convergence, the deformed body colored by mises-stress (defaultly) is showed at the window.
