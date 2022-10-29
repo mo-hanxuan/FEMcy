@@ -247,54 +247,6 @@ class Element_quadratic_tetrahedral(object):
         ], ti.f64)
 
 
-    def strainMtrx_pyscope(self, dsdx: np.ndarray):
-        """
-        strain for the stiffness matrix:
-        with shape = (n, m), 
-            n is the dimension of strian in Voigt notation, 
-                e.g., n = 6 for components including ε00, ε11, ε22, γ01, γ20, γ12 (= 2 * ε12)
-            m is the number of dof of this element, 
-                e.g., m = 30 (10 nodes x 3-dimension) for qudratic tetrahedral element
-        """
-        return np.array([
-            [dsdx[0, 0], 0., 0.,    dsdx[1, 0], 0., 0., 
-             dsdx[2, 0], 0., 0.,    dsdx[3, 0], 0., 0.,  
-             dsdx[4, 0], 0., 0.,    dsdx[5, 0], 0., 0., 
-             dsdx[6, 0], 0., 0.,    dsdx[7, 0], 0., 0., 
-             dsdx[8, 0], 0., 0.,    dsdx[9, 0], 0., 0., ],  # strain0
-            
-            [0., dsdx[0, 1], 0.,    0., dsdx[1, 1], 0.,
-             0., dsdx[2, 1], 0.,    0., dsdx[3, 1], 0.,
-             0., dsdx[4, 1], 0.,    0., dsdx[5, 1], 0.,
-             0., dsdx[6, 1], 0.,    0., dsdx[7, 1], 0.,
-             0., dsdx[8, 1], 0.,    0., dsdx[9, 1], 0.,], # strain1
-
-            [0., 0., dsdx[0, 2],    0., 0., dsdx[1, 2],
-             0., 0., dsdx[2, 2],    0., 0., dsdx[3, 2],
-             0., 0., dsdx[4, 2],    0., 0., dsdx[5, 2],
-             0., 0., dsdx[6, 2],    0., 0., dsdx[7, 2],
-             0., 0., dsdx[8, 2],    0., 0., dsdx[9, 2],], # strain2
-            
-            [dsdx[0, 1], dsdx[0, 0], 0.,    dsdx[1, 1], dsdx[1, 0], 0.,
-             dsdx[2, 1], dsdx[2, 0], 0.,    dsdx[3, 1], dsdx[3, 0], 0.,
-             dsdx[4, 1], dsdx[4, 0], 0.,    dsdx[5, 1], dsdx[5, 0], 0.,
-             dsdx[6, 1], dsdx[6, 0], 0.,    dsdx[7, 1], dsdx[7, 0], 0.,
-             dsdx[8, 1], dsdx[8, 0], 0.,    dsdx[9, 1], dsdx[9, 0], 0.,],  # gamma_01, 
-
-            [dsdx[0, 2], 0., dsdx[0, 0],    dsdx[1, 2], 0., dsdx[1, 0],
-             dsdx[2, 2], 0., dsdx[2, 0],    dsdx[3, 2], 0., dsdx[3, 0],
-             dsdx[4, 2], 0., dsdx[4, 0],    dsdx[5, 2], 0., dsdx[5, 0],
-             dsdx[6, 2], 0., dsdx[6, 0],    dsdx[7, 2], 0., dsdx[7, 0],
-             dsdx[8, 2], 0., dsdx[8, 0],    dsdx[9, 2], 0., dsdx[9, 0],],  # gamma_20, 
-
-            [0., dsdx[0, 2], dsdx[0, 1],    0., dsdx[1, 2], dsdx[1, 1],
-             0., dsdx[2, 2], dsdx[2, 1],    0., dsdx[3, 2], dsdx[3, 1],
-             0., dsdx[4, 2], dsdx[4, 1],    0., dsdx[5, 2], dsdx[5, 1],
-             0., dsdx[6, 2], dsdx[6, 1],    0., dsdx[7, 2], dsdx[7, 1],
-             0., dsdx[8, 2], dsdx[8, 1],    0., dsdx[9, 2], dsdx[9, 1],],  # gamma_12, 
-        ])
-
-
     def get_mesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh"""
         mesh = set()

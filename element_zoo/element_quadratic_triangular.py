@@ -112,7 +112,7 @@ class Element_quadratic_triangular(object):
         ])
 
 
-    def dshape_dnat_pyscope(self, natCoo: np.ndarray):
+    def dshape_dnat_pyscope(self, natCoo):  # triangle linear element
         """derivative of shape function with respect to natural coodinate"""
         nc = np.array([natCoo[0], natCoo[1], 1. - natCoo[0] - natCoo[1]])
         return np.array([
@@ -182,31 +182,6 @@ class Element_quadratic_triangular(object):
             dsdx[4, 1], dsdx[4, 0],
             dsdx[5, 1], dsdx[5, 0]]
         ], ti.float64)
-
-
-    def strainMtrx_pyscope(self, dsdx: np.ndarray):
-        return np.array([
-            [dsdx[0, 0], 0.,
-            dsdx[1, 0], 0.,
-            dsdx[2, 0], 0.,
-            dsdx[3, 0], 0.,
-            dsdx[4, 0], 0.,
-            dsdx[5, 0], 0.],
-
-            [0., dsdx[0, 1],
-            0., dsdx[1, 1],
-            0., dsdx[2, 1],
-            0., dsdx[3, 1],
-            0., dsdx[4, 1], 
-            0., dsdx[5, 1]],
-
-            [dsdx[0, 1], dsdx[0, 0],
-            dsdx[1, 1], dsdx[1, 0],
-            dsdx[2, 1], dsdx[2, 0],
-            dsdx[3, 1], dsdx[3, 0],
-            dsdx[4, 1], dsdx[4, 0],
-            dsdx[5, 1], dsdx[5, 0]]
-        ])
 
 
     def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray, 

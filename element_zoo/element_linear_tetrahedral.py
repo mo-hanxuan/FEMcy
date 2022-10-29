@@ -174,48 +174,6 @@ class Element_linear_tetrahedral(object):
         ], ti.f64)
     
 
-    def strainMtrx_pyscope(self, dsdx: np.ndarray):
-        """
-        strain for the stiffness matrix:
-        with shape = (n, m), 
-            n is the dimension of strian in Voigt notation, 
-                e.g., n = 6 for components including ε00, ε11, ε22, γ01, γ20, γ12 (= 2 * ε12)
-            m is the number of dof of this element, 
-                e.g., m = 12 (= 4 x 3) for 4 nodes with dm = 3 for each nodes
-        """
-        return np.array([
-            [dsdx[0, 0], 0., 0., 
-             dsdx[1, 0], 0., 0., 
-             dsdx[2, 0], 0., 0.,
-             dsdx[3, 0], 0., 0.,],  # strain0
-            
-            [0., dsdx[0, 1], 0.,
-             0., dsdx[1, 1], 0.,
-             0., dsdx[2, 1], 0.,
-             0., dsdx[3, 1], 0.,], # strain1
-
-            [0.,  0., dsdx[0, 2],
-             0.,  0., dsdx[1, 2], 
-             0.,  0., dsdx[2, 2], 
-             0.,  0., dsdx[3, 2], ], # strain2
-            
-            [dsdx[0, 1], dsdx[0, 0], 0.,
-             dsdx[1, 1], dsdx[1, 0], 0., 
-             dsdx[2, 1], dsdx[2, 0], 0.,
-             dsdx[3, 1], dsdx[3, 0], 0.,],  # gamma_01, 
-
-            [dsdx[0, 2], 0., dsdx[0, 0], 
-             dsdx[1, 2], 0., dsdx[1, 0], 
-             dsdx[2, 2], 0., dsdx[2, 0], 
-             dsdx[3, 2], 0., dsdx[3, 0], ],  # gamma_20, 
-
-            [0., dsdx[0, 2], dsdx[0, 1], 
-             0., dsdx[1, 2], dsdx[1, 1], 
-             0., dsdx[2, 2], dsdx[2, 1], 
-             0., dsdx[3, 2], dsdx[3, 1], ],  # gamma_12, 
-        ])
-
-
     def get_mesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh"""
         mesh = set()

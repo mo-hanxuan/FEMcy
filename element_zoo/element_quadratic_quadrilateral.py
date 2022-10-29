@@ -208,33 +208,6 @@ class Element_quadratic_quadrilateral(object):
         ])
 
 
-    def strainMtrx_pyscope(self, dsdx: np.ndarray):
-        """
-        strain for the stiffness matrix:
-        with shape = (n, m), 
-            n is the dimension of strian in Voigt notation, 
-                e.g., n = 3 for components including epsilon_11, epsilon_22 and gamma_12 (= 2 * epsilon_12)
-            m is the number of dof of this element, 
-                e.g., m = 12 for qudritic triangular element
-        """
-        return np.array([ 
-            [dsdx[0, 0], 0.,    dsdx[1, 0], 0.,
-             dsdx[2, 0], 0.,    dsdx[3, 0], 0.,
-             dsdx[4, 0], 0.,    dsdx[5, 0], 0.,
-             dsdx[6, 0], 0.,    dsdx[7, 0], 0.,],
-
-            [0., dsdx[0, 1],    0., dsdx[1, 1],
-             0., dsdx[2, 1],    0., dsdx[3, 1],
-             0., dsdx[4, 1],    0., dsdx[5, 1],
-             0., dsdx[6, 1],    0., dsdx[7, 1],],
-
-            [dsdx[0, 1], dsdx[0, 0],    dsdx[1, 1], dsdx[1, 0],
-             dsdx[2, 1], dsdx[2, 0],    dsdx[3, 1], dsdx[3, 0],
-             dsdx[4, 1], dsdx[4, 0],    dsdx[5, 1], dsdx[5, 0],
-             dsdx[6, 1], dsdx[6, 0],    dsdx[7, 1], dsdx[7, 0],]
-        ])
-
-
     def get_mesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh
            return: 
