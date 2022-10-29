@@ -78,7 +78,8 @@ class System_of_equations:
         ### get the sparseIJ (index 0 of each row stores the number of effective indexes in this row)
         body.get_coElement_nodes()
         maxLen = max(len(body.coElement_nodes[node]) for node in range(body.nodes.shape[0]))
-        self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32, shape=(self.nodes.shape[0] * self.dm, ))
+        self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32, 
+            shape=(self.nodes.shape[0] * self.dm, ))
         sparseIJ = -np.ones((self.nodes.shape[0] * self.dm, maxLen * self.dm + 1))
         for node0 in range(self.nodes.shape[0]):
             js = [node1 * self.dm + i for node1 in body.coElement_nodes[node0] for i in range(self.dm)]
@@ -89,19 +90,34 @@ class System_of_equations:
 
         ### init the row major form of sparse matrix
         print("\033[32;1m shape of the sparseIJ is {} \033[0m".format(self.sparseIJ.shape))
-        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, shape=(self.sparseIJ.shape[0], ))
+        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, 
+            shape=(self.sparseIJ.shape[0], ))
         self.du = ti.field(ti.f64, shape=(self.nodes.shape[0] * self.dm))
+
+        ### sparse matrix (indexes and elements) prepared for scipy
+        self.rows, self.cols = [], []  # indexes of rows and coloums
+        sparseIJ = self.sparseIJ.to_numpy()
+        for i in range(sparseIJ.shape[0]):
+            for j_ in range(sparseIJ[i, 0]):
+                j = sparseIJ[i, j_ + 1]
+                self.rows.append(i)
+                self.cols.append(j)
+        self.rows, self.cols = np.array(self.rows), np.array(self.cols)
+        self.K = np.zeros(shape=(self.rows.shape[0],), dtype=np.float64)
 
         ### initial variables related to time increments
         self.time0 = 0.; self.time1 = 0.
         self.dt = 0.
-        self.dof_old = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom at last time step
+        # degree of freedom at last time step
+        self.dof_old = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  
 
         ### some variables for print
         self.compiled = False  # indicate whether the assemble_sparseMtrx has been compiled
-        self.visualize_field = ti.field(ti.f64,  # a field for visualization, you can visualize some idexes of stress or strain
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
-        self.nodal_vals = ti.Vector.field(self.elements[0].n, ti.f64, shape=(self.elements.shape[0],)) # visualization of nodal strain or stress
+        # a field for visualization, you can visualize some idexes of stress or strain
+        self.visualize_field = ti.field(ti.f64,  
+            shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
+        self.nodal_vals = ti.Vector.field(self.elements[0].n, ti.f64, 
+            shape=(self.elements.shape[0],)) # visualization of nodal strain or stress
 
 
     @ti.kernel
@@ -138,7 +154,7 @@ class System_of_equations:
         if tiMatrixShape <= 10:  # involve small ti.Matrix()
             self.assemble_stiffnessMtrx()
         else:  # involve large ti.Matrix(), use faster version to save compile time
-            self.assemble_stiffnessMtrx_faster()
+            self.assemble_stiffnessMtrx_faster() 
 
 
     @ti.kernel
@@ -203,24 +219,13 @@ class System_of_equations:
         sparseIJ = self.sparseIJ.to_numpy()
         sparseMtrx_rowMajor = self.sparseMtrx_rowMajor.to_numpy()
 
-        if not hasattr(self, "rows"):
-            self.rows, self.cols = [], []
-            for i in range(sparseIJ.shape[0]):
-                for j_ in range(sparseIJ[i, 0]):
-                    j = sparseIJ[i, j_ + 1]
-                    self.rows.append(i)
-                    self.cols.append(j)
-            self.rows, self.cols = np.array(self.rows), np.array(self.cols)
-            self.vals = np.zeros(shape=(self.rows.shape[0],), dtype=np.float64)
-
         ### fetch the sparse matrix
         id = -1
         for i in range(sparseIJ.shape[0]):
             for j_ in range(sparseIJ[i, 0]):
-                j = sparseIJ[i, j_ + 1]
                 id += 1
-                self.vals[id] = sparseMtrx_rowMajor[i, j_]
-        K = sp.coo_matrix((self.vals, (self.rows, self.cols)), 
+                self.K[id] = sparseMtrx_rowMajor[i, j_]
+        K = sp.coo_matrix((self.K, (self.rows, self.cols)), 
                           shape=(sparseIJ.shape[0], 
                                  sparseIJ.shape[0]), dtype=np.float64)
         K = sp.csr_matrix(K)

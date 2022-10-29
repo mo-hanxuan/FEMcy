@@ -161,6 +161,28 @@ class Element_linear_quadrilateral(object):
         ])
 
 
+    def strainMtrx_pyscope(self, dsdx: np.ndarray):
+        """
+        strain for the stiffness matrix
+        """
+        return np.array([ 
+            [dsdx[0, 0], 0.,
+             dsdx[1, 0], 0.,
+             dsdx[2, 0], 0.,
+             dsdx[3, 0], 0.,],
+
+            [0., dsdx[0, 1],
+             0., dsdx[1, 1],
+             0., dsdx[2, 1],
+             0., dsdx[3, 1],],
+
+            [dsdx[0, 1], dsdx[0, 0],
+             dsdx[1, 1], dsdx[1, 0],
+             dsdx[2, 1], dsdx[2, 0],
+             dsdx[3, 1], dsdx[3, 0],]
+        ])
+
+
     def get_mesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh
            return: 
