@@ -234,16 +234,9 @@ class System_of_equations:
 
         ### solve the sparse matrix equation AX = B
         if not self.geometric_nonlinear:
-            rhs = self.rhs.to_numpy()
+            self.du.from_numpy(sl.spsolve(K, self.rhs.to_numpy()))
         else:
-            rhs = self.residual_nodal_force.to_numpy()
-        if len(rhs) < 1e6:
-            self.du.from_numpy(sl.spsolve(K, rhs))
-            print("scipy direct method is used")
-        else:
-            result, success = sl.cg(K, rhs)
-            self.du.from_numpy(result)
-            print(f"scipy iterative method is used, success = {success}")
+            self.du.from_numpy(sl.spsolve(K, self.residual_nodal_force.to_numpy()))
         
         time1 = time.time()
         print(f"\033[32;1m assuming time for sparse matrix solving "
@@ -256,6 +249,31 @@ class System_of_equations:
             tg.c_equals_a_minus_b(self.dof, self.dof, self.du)
         
         return self.du
+    
+
+    def solve_by_CG(self):
+        if not hasattr (self, "PCG"):
+            if not self.geometric_nonlinear:
+                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
+            else:
+                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
+        self.PCG.re_init() 
+        self.PCG.solve()
+
+        if not self.geometric_nonlinear:
+            self.dof = self.PCG.x
+        else:
+            ### self.dof = self.dof - solver.x (in Newton's method)
+            tg.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
+        
+        return self.PCG.x
+    
+
+    def solve_dof(self, ):
+        if self.dof.shape[0] < 1e5:  # critical matrix size
+            return self.solve_by_scipy()  # direct method
+        else:
+            return self.solve_by_CG()  # CG (can parallel by gpu)
 
 
     @ti.kernel
@@ -413,24 +431,6 @@ class System_of_equations:
                         print("\033[31;1m error, {}, {} appear repeatly \033[0m".format(i, j))
                     else:
                         js.add(j)
-    
-
-    def solve_dof(self):
-        if not hasattr (self, "PCG"):
-            if not self.geometric_nonlinear:
-                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
-            else:
-                self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
-        self.PCG.re_init() 
-        self.PCG.solve()
-
-        if not self.geometric_nonlinear:
-            self.dof = self.PCG.x
-        else:
-            ### self.dof = self.dof - solver.x (in Newton's method)
-            tg.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
-        
-        return self.PCG
 
 
     def compute_strain_stress(self, ):
@@ -747,7 +747,7 @@ class System_of_equations:
         self.impose_boundary_condition(boundary_conditions)
         
         if geometric_nonlinear == False:  # small deformation
-            self.solve_by_scipy()
+            self.solve_dof()
             return True, 0
         
         else:  # large deformation, use newton method
@@ -774,7 +774,7 @@ class System_of_equations:
                     if newton_loop >= 24:
                         return False, newton_loop  # Newton's method has not converged
 
-                    self.solve_by_scipy()  # dofs = dofs - K^(-1) * residual
+                    du = self.solve_dof()  # dofs = dofs - K^(-1) * residual
 
                     self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
@@ -798,11 +798,11 @@ class System_of_equations:
                         if relax_loop >= 10:
                             break
                         print("\033[35;1m further_step_ratio = {} \033[0m".format(relaxation))
-                        ### self.dof -= relaxation * self.du
-                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, self.du)
+                        ### self.dof -= relaxation * du
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, -relaxation, du)
                         residual = inside_relaxation()
                         if residual > new_residual:
-                            tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, self.du)
+                            tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, du)
                             residual = inside_relaxation()
                             relaxation *= 0.5
                     
@@ -813,9 +813,9 @@ class System_of_equations:
                         if relax_loop >= 2:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
-                        ### self.dof += (1. - relaxation) * self.du, i.e., recover dof, then update with relaxation  
-                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), self.du)
-                        tg.field_multiply(self.du, relaxation)
+                        ### self.dof += (1. - relaxation) * du, i.e., recover dof, then update with relaxation  
+                        tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), du)
+                        tg.field_multiply(du, relaxation)
                         residual = inside_relaxation()
 
                     pre_residual = residual
