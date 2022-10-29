@@ -234,9 +234,16 @@ class System_of_equations:
 
         ### solve the sparse matrix equation AX = B
         if not self.geometric_nonlinear:
-            self.du.from_numpy(sl.spsolve(K, self.rhs.to_numpy()))
+            rhs = self.rhs.to_numpy()
         else:
-            self.du.from_numpy(sl.spsolve(K, self.residual_nodal_force.to_numpy()))
+            rhs = self.residual_nodal_force.to_numpy()
+        if len(rhs) < 1e6:
+            self.du.from_numpy(sl.spsolve(K, rhs))
+            print("scipy direct method is used")
+        else:
+            result, success = sl.cg(K, rhs)
+            self.du.from_numpy(result)
+            print(f"scipy iterative method is used, success = {success}")
         
         time1 = time.time()
         print(f"\033[32;1m assuming time for sparse matrix solving "
