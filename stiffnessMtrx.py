@@ -103,6 +103,7 @@ class System_of_equations:
                 self.rows.append(i)
                 self.cols.append(j)
         self.rows, self.cols = np.array(self.rows), np.array(self.cols)
+        self.sparseIJ_np = sparseIJ
         self.K = np.zeros(shape=(self.rows.shape[0],), dtype=np.float64)
 
         ### initial variables related to time increments
@@ -216,7 +217,7 @@ class System_of_equations:
 
     def solve_by_scipy(self, ):
         ### conver some field to np.array
-        sparseIJ = self.sparseIJ.to_numpy()
+        sparseIJ = self.sparseIJ_np
         sparseMtrx_rowMajor = self.sparseMtrx_rowMajor.to_numpy()
 
         ### fetch the sparse matrix
@@ -225,6 +226,7 @@ class System_of_equations:
             for j_ in range(sparseIJ[i, 0]):
                 id += 1
                 self.K[id] = sparseMtrx_rowMajor[i, j_]
+        time0 = time.time()
         K = sp.coo_matrix((self.K, (self.rows, self.cols)), 
                           shape=(sparseIJ.shape[0], 
                                  sparseIJ.shape[0]), dtype=np.float64)
@@ -235,6 +237,10 @@ class System_of_equations:
             self.du.from_numpy(sl.spsolve(K, self.rhs.to_numpy()))
         else:
             self.du.from_numpy(sl.spsolve(K, self.residual_nodal_force.to_numpy()))
+        
+        time1 = time.time()
+        print(f"\033[32;1m assuming time for sparse matrix solving "
+              f"in scipy is {time1 - time0} s \033[0m")
 
         if not self.geometric_nonlinear:
             self.dof = self.du
