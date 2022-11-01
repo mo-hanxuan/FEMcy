@@ -227,10 +227,9 @@ class System_of_equations:
                 id += 1
                 self.K[id] = sparseMtrx_rowMajor[i, j_]
         time0 = time.time()
-        K = sp.coo_matrix((self.K, (self.rows, self.cols)), 
+        K = sp.csr_matrix((self.K, (self.rows, self.cols)), 
                           shape=(sparseIJ.shape[0], 
                                  sparseIJ.shape[0]), dtype=np.float64)
-        K = sp.csr_matrix(K)
 
         ### solve the sparse matrix equation AX = B
         if not self.geometric_nonlinear:
