@@ -1,5 +1,5 @@
 # FEMcy    
-## an open-source **finite element** solver with cross-platform **parallel** (CPU/**GPU**) computing
+## a **finite element** solver based on [Taichi](https://www.taichi-lang.org/), being **parallel** (CPU/GPU), portable and open-source
 FEMcy is a finite element solver for **structural analysis** in **continuum mechanics**, powered by cross-platform parallel (CPU/GPU) computing language of [**Taichi**](https://www.taichi-lang.org/). FEMcy is flexible for customized needs by open-source. The mechanism behind computational structural analysis (**CSD**) is now opened for you, and can be manipulated by you to meet your customized needs. We provide the implementation on GPU parallel computing, meanwhile maintain the friendly readability by Python language. 
 
 | <img src="README.assets/twist_plate_C3D4.gif" width="256" /> | <img src="README.assets/twist_plate_C3D10.gif" width="256" /> |
