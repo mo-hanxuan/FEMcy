@@ -21,9 +21,10 @@ FEMcy is a finite element solver for **structural analysis** in **continuum mech
 + quadratic tetrahedral element (C3D10, noted: this could take 5 minutes of compile time due to large ti.Matrix)
 
 ## Installation and Usage
-1. install Python (3.8+) and pip, then install Taichi and numpy
+1. install Python (3.8+) and pip, then install Taichi, numpy and scipy
+> pip install taichi <br>
 > pip install numpy <br>
-> pip install taichi
+> pip install scipy 
 2. git clone this project
 3. go to the current directory of this project, and run the code by:
 > python ./main.py
