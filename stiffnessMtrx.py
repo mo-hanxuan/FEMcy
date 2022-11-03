@@ -640,7 +640,7 @@ class System_of_equations:
                         dsdx_x_stress = dsdx[ele, igp][nid, :] @ cauchy_stress[ele, igp]
                         for i in range(dm):
                             nodal_force[node0 * dm + i] = \
-                            nodal_force[node0 * dm + i] + dsdx_x_stress[i] * self.vol[ele, igp]
+                            nodal_force[node0 * dm + i] + dsdx_x_stress[0, i] * self.vol[ele, igp]
 
 
     def solve(self, inp: Inp_info, show_newton_steps: bool=False, save2path: str=None):
