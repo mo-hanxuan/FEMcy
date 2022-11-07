@@ -20,6 +20,11 @@ FEMcy is a finite element solver for **structural analysis** in **continuum mech
 + linear tetrahedral element (C3D4)
 + quadratic tetrahedral element (C3D10, noted: this could take 5 minutes of compile time due to large ti.Matrix)
 
+## currently supported Boundary Conditions
+
++ Neumann Boundary Condition (Surface Traction)
++ Dirichlet Boundary Condition (Nodal Displacement)
+
 ## Installation and Usage
 1. install Python (3.8+) and pip, then install Taichi, numpy and scipy
 > pip install taichi <br>
@@ -80,55 +85,49 @@ corresponding **.inp file**:
 > ./tests/elliptic_membrane/element_quadratic/ellip_membrane_quadritic_trig_neumann.inp
 
 results can be compared with [https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html](https://cofea.readthedocs.io/en/latest/benchmarks/004-eliptic-membrane/model.html)
-### 2. comparison of small and large deformation by beam-deflection
-For a horizontal beam ([see problem definition](https://www.comsol.com/blogs/what-is-geometric-nonlinearity)), when fix x-displacement of two ends, and impose y-directional force on one end, the y-displacement will shows large deviation between small deformation and large deformation. <br>
+### 2. Beam Deflection (comparison of small and large deformation)
+For a **cantilever beam** as shown in **Fig. 2**, when imposing surface traction at the free end,  the results show great differences between small and large deformation. 
 
-![image-20220909191804751](README.assets/image-20220909191804751.png)
+Small deformation (linear elastic) has no horizontal displacement at the free end, whereas **large deformation** (**geometric nonlinear**) shows a **bending** beam with horizontal displacement at the free end. Curves of vertical deflection vs. load are shown in **Fig. 2 (d)**, which shows that the geometric nonlinear case has nonlinear deflection-load relation, and results of FEMcy are pretty close to Abaqus. 
 
-<center> Fig. 2 Beam deflection problem, an ideal example to show great difference with and without consideration of geometric nonlinearity. One end is fixed and another end can move along vertical directional. Large vertical distributed force acts on the movable end to deflect the beam. It's expected that as the loading force goes higher and higher, the displacement at the right end is much smaller with consideration of geometric nonlinearity. </center>
+Results of **large deformation** (**geometric nonlinear**) is computed by **Newton's method** with adaptive time step and relaxation factor, where the Jacobian matrix $\partial\ nodal\ force\ /\ \partial\ nodal\ displacement$ at each Newton-step is approximated by the stiffness matrix [K]. 
 
-![beamDeflect](README.assets/beamDeflect.gif)
+| <img src="README.assets/image-20221107094853303.png" width="550" /> | <img src="README.assets/load-deflection-curve.png" width="256" /><img src="tests/beam_deflection/load800_freeEnd_largeDef/beamDeflec_quadPSE_largeD_load800_stable.gif" width="256" /> |
+| ------------------------------------------------------------ | ---- |
 
-<center>Fig. 3 The deformed configurations (each frame is a step in Newton's method) and the final static equilibrium configuration, colored by mises-stress, and computed by FEMcy with consideration of geometric nonlinearity.  </center>
-
-Table: maximum y-displacement for difference cases
-
-| y-displacement | small deformation (without geometric nonlinearity) | large deformation (with geometric nonlinearity) |
-| :------------: | :------------------------------------------------: | :---------------------------------------------: |
-|     Abaqus     |                       16.46                        |                      6.40                       |
-|     FEMcy      |                       18.52                        |                      6.55                       |
-
-you can see that the results (max y-displacement) show huge differences between small-deformation and large-deformation. 
+<center> Fig. 2 (a) Cantilever Beam, with surface traction at the free end. (b) Linear elastic case has no horizontal displacement at the free end, whereas (c) geometric nonlinear case shows a bending beam with horizontal displacement at the free end. (d) Curves of vertical deflection vs. load </center>
 
 + .inp file for small deformation
-    > ./tests/beam_deflection/load800_smallDef/beamDeflec_quadPSE_smallD_load800_fixX.inp
-
-    you can compare the FEMcy results with Abaqus result: ./tests/abaqus_test/beam_deflection/load800_smallDef/beamDeflec_quadPSE_smallD_load800_fixX.inp
-
+    
+    > tests/beam_deflection/load800_freeEnd_smallDef/beamDeflec_quadPSE_largeD_load800.inp
+    
 + .inp file for large deformation
-    > ./tests/beam_deflection/load800_largeDef/beamDeflec_quadPSE_largeD_load800_fixX.inp
-
-    FEMcy result can be compared with Abaqus result: ./tests/abaqus_test\beam_deflection\load800_largeDef\beamDeflec_quadPSE_largeD_load800_fixX.odb
+    
+    > tests/beam_deflection/load800_freeEnd_largeDef/beamDeflec_quadPSE_largeD_load800.inp
+    
+(The material here has 2.e5 MPa of Young's modulus and 0.3 of Poisson's ratio)
 
 ### 3. Twist Plate
 
 Run `Python main.py` and then insert the .inp file `tests/twist/twist_plate_C3D4.inp` or `tests/twist/twist_plate_C3D10.inp` to the command line.
 
+The results are shown in Fig. 3 with both linear and quadratic tetrahedral elements. You can see that at the cross section perpendicular to rotation axis, stress is higher at the outer edge with larger radius at the cross section, which agrees well with the **classical torsion problem**. 
+
 | C3D4 linear Tetrahedral | C3D10 quadratic tetrahedral |
 | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | <img src="README.assets/twist_plate_C3D4.gif" width="350" /> | <img src="README.assets/twist_plate_C3D10.gif" width="350" /> |
 
-<center>Fig. 4 Twist plate with C3D4 and C3D10 element respectively, colored by Mises stress.  </center>
+<center>Fig. 3 Twist plate with C3D4 and C3D10 element respectively, colored by Mises stress.  </center>
 
 ## Future work
-+ accelerate by TaichiMesh.
++ accelerate by [MeshTaichi](https://github.com/taichi-dev/meshtaichi).
 + more types of boundary conditions, such as periodic-boundary-condition (PBC) by Lagrangian-multiplier method is on-going
 + multiphysics, general PDE solver
 + dynamic analysis
 + flexible adaptive-mesh (local-refinement dynamically)
-+ contact and friction by penalty method or Lagrange multiplier method.
++ contact and friction by penalty method (such as [IPC](https://ipc-sim.github.io/)) or Lagrange multiplier method.
 + support more file-formats for pre-processing, such as Ansys input file format. Or even develop a pre-processing GUI for you to define the geometry, mesh, material, boundary conditions, etc.
-+ support more sophisticated post-processing of the output data, such as output data file for VTK visulization or ParaView visulization. 
++ support more sophisticated post-processing of the output data, such as output VTK file for ParaView visulization. 
 
 ## References
 + An Introduction to the Finite Element Method [https://www.comsol.com/multiphysics/finite-element-method](https://www.comsol.com/multiphysics/finite-element-method)
