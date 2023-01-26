@@ -153,14 +153,14 @@ def vec_mul_voigtMtrx(vec, mtrx):  # vector (line of a matrix) multiply voigt ma
             vec[0] * mtrx[4, :] + vec[1] * mtrx[5, :] + vec[2] * mtrx[2, :], 
         ]
     """
-    ans = ti.Matrix.zero(ti.f64, vec.m, mtrx.m) #([[0. for _ in range(mtrx.m)] for _ in range(vec.m)])
-    if vec.m == 2:
-        ans[0, :] = vec[0, 0] * mtrx[0, :] + vec[0, 1] * mtrx[2, :]
-        ans[1, :] = vec[0, 0] * mtrx[2, :] + vec[0, 1] * mtrx[1, :]
-    elif vec.m == 3:
-        ans[0, :] = vec[0, 0] * mtrx[0, :] + vec[0, 1] * mtrx[3, :] + vec[0, 2] * mtrx[4, :]
-        ans[1, :] = vec[0, 0] * mtrx[3, :] + vec[0, 1] * mtrx[1, :] + vec[0, 2] * mtrx[5, :]
-        ans[2, :] = vec[0, 0] * mtrx[4, :] + vec[0, 1] * mtrx[5, :] + vec[0, 2] * mtrx[2, :]
+    ans = ti.Matrix.zero(ti.f64, vec.n, mtrx.m) #([[0. for _ in range(mtrx.m)] for _ in range(vec.m)])
+    if vec.n == 2:
+        ans[0, :] = vec[0] * mtrx[0, :] + vec[1] * mtrx[2, :]
+        ans[1, :] = vec[0] * mtrx[2, :] + vec[1] * mtrx[1, :]
+    elif vec.n == 3:
+        ans[0, :] = vec[0] * mtrx[0, :] + vec[1] * mtrx[3, :] + vec[2] * mtrx[4, :]
+        ans[1, :] = vec[0] * mtrx[3, :] + vec[1] * mtrx[1, :] + vec[2] * mtrx[5, :]
+        ans[2, :] = vec[0] * mtrx[4, :] + vec[1] * mtrx[5, :] + vec[2] * mtrx[2, :]
     return ans
 
 
