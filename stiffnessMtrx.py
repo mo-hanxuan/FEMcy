@@ -353,12 +353,11 @@ class System_of_equations:
 
     def solve_dof(self, ):
         if self.dof.shape[0] < 1e5:  # critical matrix size
-            return self.solve_by_scipy()  # direct method
+            return self.solve_by_tiSparse()  # direct method
         else:
             return self.solve_by_CG()  # CG (can parallel by gpu)
 
 
-    @ti.kernel
     def dirichletBC_linearEquations(self, 
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
@@ -367,16 +366,14 @@ class System_of_equations:
            modify the sparse matrix and the rhs (right hand side)
            this is for linear equation systems"""
         ### impose dirichlet BC at specific nodes
-        for node_ in nodeSet:
-            node = nodeSet[node_]
+        for node in nodeSet.to_numpy():
             i_global = node * self.dm + dm_specified
 
             ### modify the right hand side
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
                 ### use the symmetric property of the sparse matrix, find sparseMtrx[j_global, i_global]
-                self.rhs[j_global] = self.rhs[j_global] - sval * self.K1[ti.cast(j_global, ti.i32), 
-                                                                         ti.cast(i_global, ti.i32)]
+                self.rhs[j_global] = self.rhs[j_global] - sval * self.K1[j_global, i_global]
             self.rhs[i_global] = sval
 
             ### modify the sparse matrix
@@ -394,7 +391,6 @@ class System_of_equations:
             self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"], 
                                                     dm_specified=dirichletBC["dof"],
                                                     sval=dirichletBC["val"])
-    @ti.kernel
     def dirichletBC_forNewtonMethod_kernel(self, 
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
@@ -404,8 +400,7 @@ class System_of_equations:
            this is for Newton method, ref: https://scorec.rpi.edu/~granzb/notes/dbcs/dbcs.pdf """
         
         ### impose dirichlet BC at residual force and sparse matrix
-        for node_ in nodeSet:
-            node = nodeSet[node_]
+        for node in nodeSet.to_numpy():
             i_global = node * self.dm + dm_specified
 
             ### modify the residual force
@@ -415,9 +410,7 @@ class System_of_equations:
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
                 self.K1[i_global, j_global] = 0.
-                i0 = self.sparseMatrix_get_j(j_global, i_global)
                 self.K1[j_global, i_global] = 0.
-            i0 = self.sparseMatrix_get_j(i_global, i_global)
             self.K1[i_global, i_global] = 1.
     
 
