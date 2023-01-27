@@ -716,7 +716,7 @@ class System_of_equations:
                   ) -> Tuple[bool, int]:
 
         def inside_relaxation():
-            self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
+            self.assemble_nodal_force_GN(); self.assemble_stiffnessMtrx()  # use new dofs to compute nodal force
             tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
             residual = tg.field_norm(self.residual_nodal_force)
@@ -734,7 +734,7 @@ class System_of_equations:
 
         print("\033[32;1m now we begin to assemble the sparse matrix \033[0m"); time0 = time.time()
         self.get_dsdx_and_vol()
-        self.assemble_sparseMtrx()
+        self.assemble_stiffnessMtrx()
         print("\033[32;1m sparse matrix assembling is finished  \033[0m"); time1 = time.time()
         if not self.compiled:
             self.compiled = True
@@ -752,7 +752,7 @@ class System_of_equations:
         else:  # large deformation, use newton method
             
             ### compute nodal force for large deformation
-            self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()
+            self.assemble_nodal_force_GN(); self.assemble_stiffnessMtrx()
             tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
             self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
             pre_residual = tg.field_norm(self.residual_nodal_force)
@@ -775,7 +775,7 @@ class System_of_equations:
 
                     du = self.solve_dof()  # dofs = dofs - K^(-1) * residual
 
-                    self.assemble_nodal_force_GN(); self.assemble_sparseMtrx()  # use new dofs to compute nodal force
+                    self.assemble_nodal_force_GN(); self.assemble_stiffnessMtrx()  # use new dofs to compute nodal force
                     ### self.residual_nodal_force = self.nodal_force - self.rhs
                     tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
                     self.dirichletBC_forNewtonMethod(boundary_conditions["dirichletBCs"])
