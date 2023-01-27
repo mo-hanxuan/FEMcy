@@ -156,7 +156,8 @@ class System_of_equations:
 
     def assemble_sparseMtrx(self, ):
         tiMatrixShape = self.elements[0].n * self.dm
-        self.assemble_stiffnessMtrx() 
+        self.assemble_stiffnessMtrx_ti(self.KBuilder) 
+        self.K1 = self.KBuilder.build()
         # if tiMatrixShape <= 10:  # involve small ti.Matrix()
         #     self.assemble_stiffnessMtrx()
         # else:  # involve large ti.Matrix(), use faster version to save compile time
@@ -240,41 +241,37 @@ class System_of_equations:
 
     @ti.kernel
     def assemble_stiffnessMtrx_ti(self, K: ti.types.sparse_matrix_builder()):
-        """assemble sitffness matrix, parallel by elements, 
-           compiles faster by ∇N·C·B instead of BT·C·B
+        """assemble sitffness matrix by BT·C·B, parallel by integration points, 
            (also, update self.dsdx (∇N) and self.vol before assemble this)"""
-        dm, elements, ddsdde, vol = ti.static(
-            self.body.dm, self.elements, self.ddsdde, self.vol)
+        dm, sparseMtrx_rowMajor, elements, ddsdde, vol, dsdx = ti.static(
+            self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde, self.vol, self.dsdx)
         
-        # K.fill(0.)
-
-        # assemble the sparse matrix                    
+        # sparseMtrx_rowMajor.fill(0.)
         for ele, igp in vol:  # parallel by integration points
-            dsdx = self.dsdx[ele, igp]  # ∇N, the updated grad of shape function
-            strain = self.ELE.strainMtrx(dsdx)  # strain B(∇N), B·u = ε
+            strain = self.ELE.strainMtrx(dsdx[ele, igp])  # strain B(∇N), B·u = ε
             stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
-
+            bcb = strain.transpose() @ stress_voigt  # stiffness, BT·C·B
+            
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
-                ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
-                dsdx_x_stress = tg.vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
                 node0 = elements[ele][node]  # global node index
                 Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
                 for i_local in range(dm):
                     i_global = node0 * dm + i_local
                     for j_local in range(Js.n):
                         j_global = Js[j_local]
+                        ### atomic add to related node
                         K[i_global, j_global] += \
-                            dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
+                            bcb[node*dm+i_local, j_local] * vol[ele, igp] 
     
 
     def solve_by_tiSparse(self, ):
         time0 = time.time()
         ### fetch the sparse matrix
-        if hasattr(self, "K1"):
-            self.stiffnessMtrx_fill_with_0(self.KBuilder)
-        self.assemble_stiffnessMtrx_ti(self.KBuilder)
-        self.K1 = self.KBuilder.build()
+        # if hasattr(self, "K1"):
+        #     self.stiffnessMtrx_fill_with_0(self.KBuilder)
+        # self.assemble_stiffnessMtrx_ti(self.KBuilder)
+        # self.K1 = self.KBuilder.build()
 
         ### solve the linear system
         KSolver = ti.linalg.SparseSolver(solver_type="LLT")
@@ -286,6 +283,7 @@ class System_of_equations:
             self.du.from_numpy(KSolver.solve(self.rhs))
         else:
             self.du.from_numpy(KSolver.solve(self.residual_nodal_force))
+        print(f"\033[35;1m solver sucessfulness is {KSolver.info()}")
         
         time1 = time.time()
         print(f"\033[32;1m assuming time for sparse matrix solving "
@@ -377,18 +375,16 @@ class System_of_equations:
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
                 ### use the symmetric property of the sparse matrix, find sparseMtrx[j_global, i_global]
-                i0 = self.sparseMatrix_get_j(j_global, i_global)
-                self.rhs[j_global] = self.rhs[j_global] - sval * self.sparseMtrx_rowMajor[j_global][i0]
+                self.rhs[j_global] = self.rhs[j_global] - sval * self.K1[ti.cast(j_global, ti.i32), 
+                                                                         ti.cast(i_global, ti.i32)]
             self.rhs[i_global] = sval
 
             ### modify the sparse matrix
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
-                self.sparseMtrx_rowMajor[i_global][j0] = 0.
-                i0 = self.sparseMatrix_get_j(j_global, i_global)
-                self.sparseMtrx_rowMajor[j_global][i0] = 0.
-            i0 = self.sparseMatrix_get_j(i_global, i_global)
-            self.sparseMtrx_rowMajor[i_global][i0] = 1.
+                self.K1[i_global, j_global] = 0.
+                self.K1[j_global, i_global] = 0.
+            self.K1[i_global, i_global] = 1.
 
 
     def dirichletBC_forNewtonMethod(self, dirichletBCs):
@@ -418,11 +414,11 @@ class System_of_equations:
             ### modify the sparse matrix (i.e., the Jacobian)
             for j0 in range(self.sparseIJ[i_global][0]):
                 j_global = self.sparseIJ[i_global][j0 + 1]
-                self.sparseMtrx_rowMajor[i_global][j0] = 0.
+                self.K1[i_global, j_global] = 0.
                 i0 = self.sparseMatrix_get_j(j_global, i_global)
-                self.sparseMtrx_rowMajor[j_global][i0] = 0.
+                self.K1[j_global, i_global] = 0.
             i0 = self.sparseMatrix_get_j(i_global, i_global)
-            self.sparseMtrx_rowMajor[i_global][i0] = 1.
+            self.K1[i_global, i_global] = 1.
     
 
     def dirichletBC_dof(self, 
