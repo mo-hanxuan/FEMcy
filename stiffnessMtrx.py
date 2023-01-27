@@ -93,6 +93,10 @@ class System_of_equations:
         self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, 
             shape=(self.sparseIJ.shape[0], ))
         self.du = ti.field(ti.f64, shape=(self.nodes.shape[0] * self.dm))
+        self.KBuilder = ti.linalg.SparseMatrixBuilder(self.sparseIJ.shape[0],
+                                                      self.sparseIJ.shape[0],
+                                                      max_num_triplets=1000000)
+        self.KBuilder_initialized = False
 
         ### sparse matrix (indexes and elements) prepared for scipy
         self.rows, self.cols = [], []  # indexes of rows and coloums
@@ -152,10 +156,11 @@ class System_of_equations:
 
     def assemble_sparseMtrx(self, ):
         tiMatrixShape = self.elements[0].n * self.dm
-        if tiMatrixShape <= 10:  # involve small ti.Matrix()
-            self.assemble_stiffnessMtrx()
-        else:  # involve large ti.Matrix(), use faster version to save compile time
-            self.assemble_stiffnessMtrx_faster() 
+        self.assemble_stiffnessMtrx() 
+        # if tiMatrixShape <= 10:  # involve small ti.Matrix()
+        #     self.assemble_stiffnessMtrx()
+        # else:  # involve large ti.Matrix(), use faster version to save compile time
+        #     self.assemble_stiffnessMtrx_faster() 
 
 
     @ti.kernel
@@ -214,6 +219,86 @@ class System_of_equations:
                         sparseMtrx_rowMajor[i_global][j] += \
                             dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
     
+
+    @ti.kernel 
+    def stiffnessMtrx_fill_with_0(self, K: ti.types.sparse_matrix_builder()):
+        """initialize the stiffness matrix by zero element"""
+        dm, elements, ddsdde, vol = ti.static(
+            self.body.dm, self.elements, self.ddsdde, self.vol)
+        for ele, igp in vol:  # parallel by integration points
+            for node in range(elements[ele].n):
+                ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
+                node0 = elements[ele][node]  # global node index
+                Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
+                for i_local in range(dm):
+                    i_global = node0 * dm + i_local
+                    for j_local in range(Js.n):
+                        j_global = Js[j_local]
+                        if K[i_global, j_global] != 0:
+                            K[i_global, j_global] -= self.K1[i_global, j_global]
+    
+
+    @ti.kernel
+    def assemble_stiffnessMtrx_ti(self, K: ti.types.sparse_matrix_builder()):
+        """assemble sitffness matrix, parallel by elements, 
+           compiles faster by ∇N·C·B instead of BT·C·B
+           (also, update self.dsdx (∇N) and self.vol before assemble this)"""
+        dm, elements, ddsdde, vol = ti.static(
+            self.body.dm, self.elements, self.ddsdde, self.vol)
+        
+        # K.fill(0.)
+
+        # assemble the sparse matrix                    
+        for ele, igp in vol:  # parallel by integration points
+            dsdx = self.dsdx[ele, igp]  # ∇N, the updated grad of shape function
+            strain = self.ELE.strainMtrx(dsdx)  # strain B(∇N), B·u = ε
+            stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
+
+            ### integrate to the large sparse matrix
+            for node in range(elements[ele].n):
+                ### dsdx mutiplies the stress, ∇N·C·B, compile faster than BT·C·B
+                dsdx_x_stress = tg.vec_mul_voigtMtrx(dsdx[node, :], stress_voigt)
+                node0 = elements[ele][node]  # global node index
+                Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
+                for i_local in range(dm):
+                    i_global = node0 * dm + i_local
+                    for j_local in range(Js.n):
+                        j_global = Js[j_local]
+                        K[i_global, j_global] += \
+                            dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
+    
+
+    def solve_by_tiSparse(self, ):
+        time0 = time.time()
+        ### fetch the sparse matrix
+        if hasattr(self, "K1"):
+            self.stiffnessMtrx_fill_with_0(self.KBuilder)
+        self.assemble_stiffnessMtrx_ti(self.KBuilder)
+        self.K1 = self.KBuilder.build()
+
+        ### solve the linear system
+        KSolver = ti.linalg.SparseSolver(solver_type="LLT")
+        KSolver.analyze_pattern(self.K1)
+        KSolver.factorize(self.K1)
+
+        ### solve the sparse matrix equation AX = B
+        if not self.geometric_nonlinear:
+            self.du.from_numpy(KSolver.solve(self.rhs))
+        else:
+            self.du.from_numpy(KSolver.solve(self.residual_nodal_force))
+        
+        time1 = time.time()
+        print(f"\033[32;1m assuming time for sparse matrix solving "
+              f"in scipy is {time1 - time0} s \033[0m")
+
+        if not self.geometric_nonlinear:
+            self.dof = self.du
+        else:
+            ### self.dof = self.dof - solver.x (in Newton's method)
+            tg.c_equals_a_minus_b(self.dof, self.dof, self.du)
+        
+        return self.du
+
 
     def solve_by_scipy(self, ):
         ### conver some field to np.array
