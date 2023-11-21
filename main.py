@@ -8,7 +8,7 @@ import time, os; os.system("")
 
 
 if __name__ == "__main__":
-    ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
+    ti.init(arch=ti.cuda, default_fp=ti.f64)
     
     ### input abaqus .inp format file, including file path and name
     fileName = input("\033[32;1m please give the .inp format's "
