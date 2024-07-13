@@ -2,17 +2,20 @@ import taichi as ti
 from time import time
 
 from readInp import *
-from material import *
+from material_zoo import *
 import yaml
 
 
 @ti.data_oriented
 class ConjugateGradientSolver_rowMajor:
 
-    def __init__(self, spm: ti.template(), sparseIJ: ti.template(),  # this is used to define the sparse matrix
-                 b: ti.template(),
-                 eps=1.e-3,  # the allowable relative error of residual 
-                 ):
+    def __init__(
+            self,
+            spm: ti.template(),
+            sparseIJ: ti.template(),  # this is used to define the sparse matrix
+            b: ti.template(),
+            eps=1.0e-3,  # the allowable relative error of residual
+    ):
         self.A = spm  # sparse matrix, also called stiffness matrix or coefficient matrix
         self.ij = sparseIJ  # for each row, record the colume index of sparse matrix (each row, index 0 stores the number of effective indexes)
         self.b = b  # the right hand side (rhs) of the linear system
@@ -20,20 +23,21 @@ class ConjugateGradientSolver_rowMajor:
         self.x = ti.field(ti.f64, b.shape[0])  # the solution x
         self.r = ti.field(ti.f64, b.shape[0])  # the residual
         self.d = ti.field(ti.f64, b.shape[0])  # the direction of change of x
-        self.M = ti.field(ti.f64, b.shape[0]); self.M_init()  # the inverse of precondition diagonal matrix, M^(-1) actually
+
+        # the inverse of precondition diagonal matrix, M^(-1) actually
+        self.M = ti.field(ti.f64, b.shape[0])
+        self.M_init()
 
         self.Ad = ti.field(ti.f64, b.shape[0])  # A multiply d
         self.eps = eps
-    
 
-    def re_init(self, ): 
-        """re_initialize if this CG class is reused repeatedly"""
+    def re_init(self):  # re_initialize if this CG class is reused repeatedly
         self.x.fill(0.)
         self.r.fill(0.)
         self.d.fill(0.)
-        self.M.fill(0.); self.M_init()
+        self.M.fill(0.)
+        self.M_init()
         self.Ad.fill(0.)
-
 
     @ti.func
     def A_get(self, i, j):
@@ -43,12 +47,10 @@ class ConjugateGradientSolver_rowMajor:
                 target_j = j0
         return self.A[i][target_j]
 
-
     @ti.kernel
-    def M_init(self, ):  # initialize the precondition diagonal matrix
+    def M_init(self):  # initialize the precondition diagonal matrix
         for i in self.M:
             self.M[i] = 1. / self.A_get(i, i)
-    
 
     @ti.kernel
     def compute_Ad(self, ):  # compute A multiple d
@@ -56,49 +58,42 @@ class ConjugateGradientSolver_rowMajor:
             self.Ad[i] = 0.
             for j0 in range(self.ij[i][0]):
                 self.Ad[i] = self.Ad[i] + self.A[i][j0] * self.d[self.ij[i][j0 + 1]]
-    
 
     @ti.kernel
-    def r_d_init(self, ):  # initial residual r and direction d
+    def r_d_init(self):  # initial residual r and direction d
         for i in self.r:  # r0 = b - Ax0 = b
             self.r[i] = self.b[i]
         for i in self.d:
             self.d[i] = self.M[i] * self.r[i]  # d0 = M^(-1) * r
-    
 
     @ti.kernel
-    def rmax(self, ) -> float:  # max of abs(r), modified latter by reduce_max
+    def rmax(self) -> float:  # max of abs(r), modified latter by reduce_max
         rm = 0.
         for i in self.r:
             ti.atomic_max(rm, ti.abs(self.r[i]))
         return rm
-    
 
     @ti.kernel
-    def compute_rMr(self, ) -> float:  # r * M^(-1) * r
+    def compute_rMr(self) -> float:  # r * M^(-1) * r
         rMr = 0.
         for i in self.r:
             rMr += self.r[i] * self.M[i] * self.r[i]
         return rMr
-    
 
-    @ti.kernel 
+    @ti.kernel
     def update_x(self, alpha: float):
         for j in self.x:
             self.x[j] = self.x[j] + alpha * self.d[j]
-    
 
     @ti.kernel
     def update_r(self, alpha: float):
         for j in self.r:
             self.r[j] = self.r[j] - alpha * self.Ad[j]
-    
 
-    @ti.kernel 
+    @ti.kernel
     def update_d(self, beta: float):
         for j in self.d:
             self.d[j] = self.M[j] * self.r[j] + beta * self.d[j]
-    
 
     @ti.kernel
     def dot_product(self, y: ti.template(), z: ti.template()) -> float:
@@ -107,8 +102,7 @@ class ConjugateGradientSolver_rowMajor:
             res += y[i] * z[i]
         return res
 
-
-    def solve(self, ):
+    def solve(self):
         self.r_d_init()
         r0 = self.rmax()  # the inital residual scale
         print("\033[32;1m the initial residual scale is {} \033[0m".format(r0))
@@ -123,20 +117,16 @@ class ConjugateGradientSolver_rowMajor:
             self.update_r(alpha)
             beta = self.compute_rMr() / rMr
             self.update_d(beta)
-            
+
             rmax = self.rmax()  # the infinite norm of residual, shold be modified latter to the reduce max
             t1 = time()
 
             if i % 64 == 0:
-                print("\033[35;1m the {}-th loop, norm of residual is {}, in-loop time is {} s\033[0m".format(
-                    i, rmax, t1 - t0
-                ))
+                print(f"\033[35;1m the {i}-th loop, norm of residual is {rmax}, in-loop time is {t1 - t0} sec \033[0m")
             if rmax < self.eps * r0:  # converge?
-                print("\033[35;1m the {}-th loop, norm of residual is {}, in-loop time is {} s\033[0m".format(
-                    i, rmax, t1 - t0
-                ))
+                print(f"\033[35;1m the {i}-th loop, norm of residual is {rmax}, in-loop time is {t1 - t0} sec \033[0m")
                 break
-        print("\033[32;1m CG solver's computation time is {} s\033[0m".format(time() - time_outloop))
+        print(f"\033[32;1m CG solver's computation time is {time() - time_outloop} sec \033[0m")
 
 
 if __name__ == "__main__":
@@ -177,7 +167,7 @@ if __name__ == "__main__":
     for i in range(len(spm)):
         spm[i, :len(spm_[i])] = spm_[i][:]
         sparseIJ[i, :len(sparseIJ_[i])] = sparseIJ_[i][:]
-    
+
     ### transform to taichi field
     A = ti.Vector.field(spm.shape[1], ti.f64, shape=(spm.shape[0], ))
     A.from_numpy(spm)

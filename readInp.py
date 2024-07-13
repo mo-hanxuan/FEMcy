@@ -6,7 +6,7 @@ import numpy as np
 import taichi as ti
 import os; import copy; import sys
 from element_zoo import *
-from material import *
+from material_zoo import *
 
 
 class Inp_info(object):
@@ -297,15 +297,15 @@ class Inp_info(object):
                     raise ValueError("only support linear elastic material for 2d element now.")
                 else:
                     if ele_type[0:3] == "CPS":
-                        materials[key] = Linear_isotropic_planeStress(modulus=materials["Elastic"][0], 
+                        materials[key] = LinearIsotropicPlaneStress(modulus=materials["Elastic"][0], 
                                                                 poisson_ratio=materials["Elastic"][1])
                     elif ele_type[0:3] == "CPE":
-                        materials[key] = Linear_isotropic_planeStrain(modulus=materials["Elastic"][0], 
+                        materials[key] = LinearIsotropicPlaneStrain(modulus=materials["Elastic"][0], 
                                                                 poisson_ratio=materials["Elastic"][1])
         elif ele_type[0:3] == "C3D":
             for key in materials:
                 if key == "Elastic":
-                    materials[key] = Linear_isotropic(modulus=materials["Elastic"][0], 
+                    materials[key] = LinearIsotropic(modulus=materials["Elastic"][0], 
                                                 poisson_ratio=materials["Elastic"][1])
                 elif "neo hooke" in key:
                     materials[key] = NeoHookean(C1=materials[key][0], D1=1./materials[key][1])

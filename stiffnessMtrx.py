@@ -6,7 +6,7 @@ import numpy as np
 import time; from typing import Tuple, Union
 from body import Body
 from readInp import *
-from material import *
+from material_zoo import *
 from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined as ud
@@ -441,7 +441,7 @@ class System_of_equations:
             self.get_strain_largeDeformation()
         ### get the stress
         if not self.geometric_nonlinear:
-            self.material.constitutive_smallDeform(self.F, self.cauchy_stress, self.ddsdde)
+            self.material.constitutiveOfSmallDeform(self.F, self.cauchy_stress, self.ddsdde)
         else:
             pass  # stress has been computed for geometric nonlinear case
         ### compute mises stress
@@ -609,7 +609,7 @@ class System_of_equations:
         """assemble the nodal force for GN (geometric nonlinear)"""
         ### get all stresses at integration points by constitutive, modified latter by automatically change consititutive
         self.get_deformation_gradient()
-        self.material.constitutive_largeDeform(self.F, self.cauchy_stress, self.ddsdde)
+        self.material.constitutiveOfLargeDeform(self.F, self.cauchy_stress, self.ddsdde)
         ### get dsdx and vol
         self.get_dsdx_and_vol()
         ### assemble to nodal force
@@ -853,10 +853,10 @@ if __name__ == "__main__":
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
     ele_type = list(eSets.keys())[0]
     if ele_type[0:3] == "CPS":
-        material = Linear_isotropic_planeStress(modulus=inp.materials["Elastic"][0], 
+        material = LinearIsotropicPlaneStress(modulus=inp.materials["Elastic"][0], 
                                                 poisson_ratio=inp.materials["Elastic"][1])
     elif ele_type[0:3] == "CPE":
-        material = Linear_isotropic_planeStrain(modulus=inp.materials["Elastic"][0], 
+        material = LinearIsotropicPlaneStrain(modulus=inp.materials["Elastic"][0], 
                                                 poisson_ratio=inp.materials["Elastic"][1])
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
