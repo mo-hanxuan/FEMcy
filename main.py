@@ -1,7 +1,6 @@
 import taichi as ti
 from stiffnessMtrx import System_of_equations
 from readInp import *
-from material_zoo import *
 from body import Body
 from tiGadgets import field_abs_max, scalerField_from_matrixField, vectorField_max
 import time, os

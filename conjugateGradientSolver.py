@@ -2,7 +2,6 @@ import taichi as ti
 from time import time
 
 from readInp import *
-from material_zoo import *
 import yaml
 
 

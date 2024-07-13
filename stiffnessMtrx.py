@@ -6,8 +6,6 @@ import numpy as np
 import time; from typing import Tuple, Union
 from body import Body
 from readInp import *
-from material_zoo import *
-from element_zoo import *
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined as ud
 import tiGadgets as tg
@@ -392,7 +390,7 @@ class System_of_equations:
                 eleNodesList = body.np_elements[ele, :].tolist()
                 localFacet = [eleNodesList.index(i) for i in facet]
                 for integId in range(ELE.integPointNum_eachFacet):
-                    normal_vector, area_x_weight = ELE.global_normal(nodes=localNodes, 
+                    normal_vector, area_x_weight = ELE.globalNormal(nodes=localNodes, 
                                                                     facet=localFacet, 
                                                                     integPointId=integId)
                     ### get the flux, which can also be interpreted as traction force

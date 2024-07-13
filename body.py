@@ -8,7 +8,6 @@ import tiGadgets as tg
 from colorBar import getColor
 
 from readInp import Inp_info
-from element_zoo import *
 
 
 @ti.data_oriented
@@ -26,7 +25,7 @@ class Body:
         self.ELE = ELE
 
         ### the variables for visualization
-        mesh, face2ele, surfaces = self.ELE.get_mesh(self.np_elements)
+        mesh, face2ele, surfaces = self.ELE.getMesh(self.np_elements)
         self.mesh_id = ti.field(ti.i32, shape=(surfaces.shape[0] * surfaces.shape[1])); self.mesh_id.from_numpy(surfaces.reshape(-1))
         self.mesh = ti.Vector.field(3, ti.f32, shape=(surfaces.shape[0] * surfaces.shape[1]))  # store vertex coordinates of the mesh, similar to .stl format
         mesh2ele = np.zeros(surfaces.shape[0] * surfaces.shape[1], dtype=np.int64)
