@@ -1,5 +1,6 @@
 import numpy as np
 import taichi as ti
+from element_base import ElementBase
 
 """
         3----6----2
@@ -11,7 +12,7 @@ import taichi as ti
     ---> ξ 
 """
 @ti.data_oriented
-class Element_quadratic_quadrilateral(object):
+class Element_quadratic_quadrilateral(ElementBase):
     def __init__(self, ):
         self.dm = 2  # spatial dimension
 
@@ -149,7 +150,7 @@ class Element_quadratic_quadrilateral(object):
         ])
     
 
-    def global_normal(self, nodes: np.ndarray, facet: list, integPointId=0):
+    def globalNormal(self, nodes: np.ndarray, facet: list, integPointId=0):
         """
         deduce the normal vector in global coordinate for a given facet.
         input:
@@ -208,7 +209,7 @@ class Element_quadratic_quadrilateral(object):
         ])
 
 
-    def get_mesh(self, elements: np.ndarray):
+    def getMesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh
            return: 
                 mesh: a int array of shape (3 * #triangles), which indicate

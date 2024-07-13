@@ -2,6 +2,7 @@
 
 import numpy as np
 import taichi as ti
+from element_base import ElementBase
 
 """
 some variables and functions related to quadratic triangular elements
@@ -17,7 +18,7 @@ some variables and functions related to quadratic triangular elements
     ---> ξ 
 """
 @ti.data_oriented
-class Element_quadratic_triangular(object):
+class Element_quadratic_triangular(ElementBase):
     def __init__(self, ):
         self.dm = 2  # spatial dimension for triangular element
 
@@ -125,7 +126,7 @@ class Element_quadratic_triangular(object):
         ])
 
 
-    def global_normal(self, nodes: np.ndarray, facet: list, integPointId=0):
+    def globalNormal(self, nodes: np.ndarray, facet: list, integPointId=0):
         """
         deduce the normal vector in global coordinate for a given facet.
         input:
@@ -227,7 +228,7 @@ class Element_quadratic_triangular(object):
         return a, b, c, line0, line1
 
 
-    def get_mesh(self, elements: np.ndarray):
+    def getMesh(self, elements: np.ndarray):
         """get the triangles of the mesh, and the outer surface of the mesh
            return: 
                 mesh: a int array of shape (3 * #triangles), which indicate
@@ -320,10 +321,10 @@ if __name__ == "__main__":
     ELE = Element_quadratic_triangular()
 
     print("element_triangle_linear.global_normal(nodes, [0, 3]) = ", 
-          ELE.global_normal(nodes, [0, 3]))
+          ELE.globalNormal(nodes, [0, 3]))
     print("element_triangle_linear.global_normal(nodes, [3, 1]) = ", 
-          ELE.global_normal(nodes, [3, 1]))
+          ELE.globalNormal(nodes, [3, 1]))
     print("element_triangle_linear.global_normal(nodes, [1, 4]) = ", 
-          ELE.global_normal(nodes, [1, 4]))
+          ELE.globalNormal(nodes, [1, 4]))
     print("element_triangle_linear.global_normal(nodes, [4, 2]) = ", 
-          ELE.global_normal(nodes, [4, 2]))
+          ELE.globalNormal(nodes, [4, 2]))
