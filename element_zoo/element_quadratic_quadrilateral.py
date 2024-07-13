@@ -1,3 +1,5 @@
+# yapf: disable
+
 import numpy as np
 import taichi as ti
 from element_base import ElementBase
@@ -26,7 +28,7 @@ class Element_quadratic_quadrilateral(ElementBase):
         ]))
         self.gaussWeights = ti.field(dtype=ti.f64, shape=(4, ))
         self.gaussWeights.from_numpy(np.array([1., 1., 1., 1.]))
-    
+
         ### facets coordinates and normals for flux computation
         ### each facet has multiple gauss points
         ###     keys: tuple(id1, id2), use sorted tuple for convenience
@@ -35,29 +37,29 @@ class Element_quadratic_quadrilateral(ElementBase):
             (0, 4): [[-1., -1.], [0., -1.]], (1, 4): [[1., -1.], [0., -1.]],
             (1, 5): [[1., -1.], [1., 0.]],   (2, 5): [[1., 1.], [1., 0.]],
             (2, 6): [[1., 1.], [0., 1.]],    (3, 6): [[-1., 1.], [0., 1.]],
-            (0, 7): [[-1., 1.], [-1., 0.]],  (3, 7): [[-1., -1.], [-1., 0.]] 
+            (0, 7): [[-1., 1.], [-1., 0.]],  (3, 7): [[-1., -1.], [-1., 0.]]
         }
         self.facet_point_weights = {
             (0, 4): [0.5, 0.5],   (1, 4): [0.5, 0.5],
             (1, 5): [0.5, 0.5],   (2, 5): [0.5, 0.5],
             (2, 6): [0.5, 0.5],   (3, 6): [0.5, 0.5],
-            (0, 7): [0.5, 0.5],   (3, 7): [0.5, 0.5] 
+            (0, 7): [0.5, 0.5],   (3, 7): [0.5, 0.5]
         }
         self.integPointNum_eachFacet = len(list(self.facet_point_weights.values())[0])
 
         """ facet normals in natural coordinate,
             must points to the outside of the element"""
-        self.facet_natural_normals = {  
+        self.facet_natural_normals = {
             (0, 4): [[0., -1.], [0., -1.]],  (1, 4): [[0., -1.], [0., -1.]],
             (1, 5): [[1., 0.], [1., 0.]],  (2, 5): [[1., 0.], [1., 0.]],
             (2, 6): [[0., 1.], [0., 1.]],  (3, 6): [[0., 1.], [0., 1.]],
-            (0, 7): [[-1., 0.], [-1., 0.]], (3, 7): [[-1., 0.], [-1., 0.]] 
+            (0, 7): [[-1., 0.], [-1., 0.]], (3, 7): [[-1., 0.], [-1., 0.]]
         }
         """facet number for reading .inp (Abaqus, CalculiX) file and get the face set"""
-        self.inp_surface_num = [((0, 4), (1, 4)), 
-                                ((1, 5), (2, 5)),  
-                                ((2, 6), (3, 6)),  
-                                ((0, 7), (3, 7))]  
+        self.inp_surface_num = [((0, 4), (1, 4)),
+                                ((1, 5), (2, 5)),
+                                ((2, 6), (3, 6)),
+                                ((0, 7), (3, 7))]
 
 
     @ti.func
@@ -80,33 +82,33 @@ class Element_quadratic_quadrilateral(ElementBase):
     def dshape_dnat(self, nc):  # nc stands for natrual coordinates
         """derivative of shape function with respect to natural coodinate"""
         return ti.Matrix([
-            [-(1. - nc[1]) * (-2. * nc[0] - nc[1]) / 4., 
+            [-(1. - nc[1]) * (-2. * nc[0] - nc[1]) / 4.,
              -(1. - nc[0]) * (-2. * nc[1] - nc[0]) / 4.],
-            
-            [ (1. - nc[1]) * ( 2. * nc[0] - nc[1]) / 4., 
+
+            [ (1. - nc[1]) * ( 2. * nc[0] - nc[1]) / 4.,
              -(1. + nc[0]) * (-2. * nc[1] + nc[0]) / 4.],
 
-            [ (1. + nc[1]) * ( 2. * nc[0] + nc[1]) / 4., 
+            [ (1. + nc[1]) * ( 2. * nc[0] + nc[1]) / 4.,
               (1. + nc[0]) * ( 2. * nc[1] + nc[0]) / 4.],
-            
-            [-(1. + nc[1]) * (-2. * nc[0] + nc[1]) / 4., 
+
+            [-(1. + nc[1]) * (-2. * nc[0] + nc[1]) / 4.,
               (1. - nc[0]) * ( 2. * nc[1] - nc[0]) / 4.],
 
-            [-2.*nc[0] * (1. - nc[1]) / 2., 
+            [-2.*nc[0] * (1. - nc[1]) / 2.,
              -(1. - nc[0]**2) / 2.],
 
-            [(1. - nc[1]**2) / 2., 
+            [(1. - nc[1]**2) / 2.,
              -2.*nc[1] * (1. + nc[0]) / 2.],
 
-            [-2.*nc[0] * (1. + nc[1]) / 2., 
+            [-2.*nc[0] * (1. + nc[1]) / 2.,
              (1. - nc[0]**2) / 2.],
 
-            [-(1. - nc[1]**2) / 2., 
+            [-(1. - nc[1]**2) / 2.,
              -2.*nc[1] * (1. - nc[0]) / 2.],
         ], ti.f64)
 
 
-    def shapeFunc_pyscope(self, nc: np.ndarray):  
+    def shapeFunc_pyscope(self, nc: np.ndarray):
         """input the natural coordinate and get the shape function values"""
         return np.array([
             (1. - nc[0]) * (1. - nc[1]) * (-1. - nc[0] - nc[1]) / 4.,
@@ -124,31 +126,31 @@ class Element_quadratic_quadrilateral(ElementBase):
     def dshape_dnat_pyscope(self, nc: np.ndarray):
         """derivative of shape function with respect to natural coodinate"""
         return np.array([
-            [-(1. - nc[1]) * (-2. * nc[0] - nc[1]) / 4., 
+            [-(1. - nc[1]) * (-2. * nc[0] - nc[1]) / 4.,
              -(1. - nc[0]) * (-2. * nc[1] - nc[0]) / 4.],
-            
-            [ (1. - nc[1]) * ( 2. * nc[0] - nc[1]) / 4., 
+
+            [ (1. - nc[1]) * ( 2. * nc[0] - nc[1]) / 4.,
              -(1. + nc[0]) * (-2. * nc[1] + nc[0]) / 4.],
 
-            [ (1. + nc[1]) * ( 2. * nc[0] + nc[1]) / 4., 
+            [ (1. + nc[1]) * ( 2. * nc[0] + nc[1]) / 4.,
               (1. + nc[0]) * ( 2. * nc[1] + nc[0]) / 4.],
-            
-            [-(1. + nc[1]) * (-2. * nc[0] + nc[1]) / 4., 
+
+            [-(1. + nc[1]) * (-2. * nc[0] + nc[1]) / 4.,
               (1. - nc[0]) * ( 2. * nc[1] - nc[0]) / 4.],
 
-            [-2.*nc[0] * (1. - nc[1]) / 2., 
+            [-2.*nc[0] * (1. - nc[1]) / 2.,
              -(1. - nc[0]**2) / 2.],
 
-            [(1. - nc[1]**2) / 2., 
+            [(1. - nc[1]**2) / 2.,
              -2.*nc[1] * (1. + nc[0]) / 2.],
 
-            [-2.*nc[0] * (1. + nc[1]) / 2., 
+            [-2.*nc[0] * (1. + nc[1]) / 2.,
              (1. - nc[0]**2) / 2.],
 
-            [-(1. - nc[1]**2) / 2., 
+            [-(1. - nc[1]**2) / 2.,
              -2.*nc[1] * (1. - nc[0]) / 2.],
         ])
-    
+
 
     def globalNormal(self, nodes: np.ndarray, facet: list, integPointId=0):
         """
@@ -163,9 +165,9 @@ class Element_quadratic_quadrilateral(ElementBase):
             where the length of the vector indicates the area of the boundary facet
         """
         facet = tuple(sorted(facet))
-        
-        ### facet normal from natural coordinates to global coordinates,  
-        ### must maintain the perpendicular relation between normal and facet, 
+
+        ### facet normal from natural coordinates to global coordinates,
+        ### must maintain the perpendicular relation between normal and facet,
         ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
         natCoo = self.facet_natural_coos[facet][integPointId]
         dsdn = self.dshape_dnat_pyscope(natCoo)
@@ -191,7 +193,7 @@ class Element_quadratic_quadrilateral(ElementBase):
             m is the number of dof of this element, 
                 e.g., m = 12 for qudritic triangular element
         """
-        return ti.Matrix([ 
+        return ti.Matrix([
             [dsdx[0, 0], 0.,    dsdx[1, 0], 0.,
              dsdx[2, 0], 0.,    dsdx[3, 0], 0.,
              dsdx[4, 0], 0.,    dsdx[5, 0], 0.,
@@ -222,9 +224,9 @@ class Element_quadratic_quadrilateral(ElementBase):
         mesh = set()
         face2ele = {}  # from face to element
         for iele, ele in enumerate(elements):
-            faces = [ 
+            faces = [
                 (ele[0], ele[4], ele[7]), (ele[1], ele[4], ele[5]),
-                (ele[2], ele[5], ele[6]), (ele[3], ele[6], ele[7]), 
+                (ele[2], ele[5], ele[6]), (ele[3], ele[6], ele[7]),
                 (ele[5], ele[6], ele[7]), (ele[4], ele[5], ele[7])
             ]
             faces = list(map(lambda face: tuple(sorted(face)), faces))
@@ -239,13 +241,13 @@ class Element_quadratic_quadrilateral(ElementBase):
         for face in face2ele:
             if len(face2ele[face]) == 1:
                 surfaces.add(face)
-        
+
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
 
 
     @ti.func
-    def shapeFunc_for_extrapolate(self, natCoo):  
+    def shapeFunc_for_extrapolate(self, natCoo):
         """input the natural coordinate and get the shape function values"""
         return ti.Vector([
             (1. - natCoo[0]) * (1. - natCoo[1]) / 4.,
@@ -255,7 +257,7 @@ class Element_quadratic_quadrilateral(ElementBase):
         ], ti.f64)
 
 
-    @ti.kernel 
+    @ti.kernel
     def extrapolate(self, internal_vals: ti.template(), nodal_vals: ti.template()):
         """extrapolate the internal Gauss points' vals to the nodal vals
            no averaging is performing here, we want to get the nodal vals patch by patch,

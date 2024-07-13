@@ -1,3 +1,5 @@
+# yapf: disable
+
 import numpy as np
 import taichi as ti
 from element_base import ElementBase
@@ -20,7 +22,7 @@ from element_base import ElementBase
    ---> ξ
   /
  ζ
-""" 
+"""
 @ti.data_oriented
 class Element_quadratic_tetrahedral(ElementBase):
     def __init__(self, gauss_points_count=4):
@@ -43,7 +45,7 @@ class Element_quadratic_tetrahedral(ElementBase):
             each facet can have multiple gauss points in general
                 keys: tuple(id1, id2), use sorted tuple for convenience
                 values: natural coodinates of different Gauss points"""
-        self.facet_natural_coos = { 
+        self.facet_natural_coos = {
             (1, 2, 3, 5, 8, 9): [[1., 0., 0.], [0., 1., 0.], [0., 0., 0.],
                                  [0.5, 0.5, 0.], [0., 0.5, 0.], [0.5, 0., 0.]],  # face (1, 2, 3)
             (0, 2, 3, 6, 7, 9): [[0., 1., 0.], [0., 0., 1.], [0., 0., 0.],
@@ -63,9 +65,9 @@ class Element_quadratic_tetrahedral(ElementBase):
 
         """ facet normals in natural coordinate,
             must points to the outside of the element"""
-        self.facet_natural_normals = {  
+        self.facet_natural_normals = {
             ###                 [[dξ,  dη, dζ], ],
-            (1, 2, 3, 5, 8, 9): [[0., 0., -1.], [0., 0., -1.], [0., 0., -1.], 
+            (1, 2, 3, 5, 8, 9): [[0., 0., -1.], [0., 0., -1.], [0., 0., -1.],
                                  [0., 0., -1.], [0., 0., -1.], [0., 0., -1.]],  # (1, 2, 3)
             (0, 2, 3, 6, 7, 9): [[-1., 0., 0.], [-1., 0., 0.], [-1., 0., 0.],
                                  [-1., 0., 0.], [-1., 0., 0.], [-1., 0., 0.]],  # (0, 2, 3)
@@ -78,11 +80,11 @@ class Element_quadratic_tetrahedral(ElementBase):
         self.inp_surface_num = [((0, 1, 2, 4, 5, 6), ),  # (0, 1, 2) 
                                 ((0, 1, 3, 4, 7, 8), ),  # (0, 1, 3) 
                                 ((1, 2, 3, 5, 8, 9), ),  # (1, 2, 3)
-                                ((0, 2, 3, 6, 7, 9), )]  # (0, 2, 3) 
+                                ((0, 2, 3, 6, 7, 9), )]  # (0, 2, 3)
 
 
     @ti.func
-    def shapeFunc(self, natCoo):  
+    def shapeFunc(self, natCoo):
         """input the natural coordinate and get the shape function values"""
         nc = ti.Vector([natCoo[2],  # nc[0]
                         natCoo[0],  # nc[1]
@@ -90,8 +92,8 @@ class Element_quadratic_tetrahedral(ElementBase):
                         natCoo[1],  # nc[3]
                        ], ti.f64)
         return ti.Vector([
-            nc[0] * (2. * nc[0] - 1.), 
-            nc[1] * (2. * nc[1] - 1.), 
+            nc[0] * (2. * nc[0] - 1.),
+            nc[1] * (2. * nc[1] - 1.),
             nc[2] * (2. * nc[2] - 1.),
             nc[3] * (2. * nc[3] - 1.),
             4. * nc[0] * nc[1],
@@ -100,14 +102,14 @@ class Element_quadratic_tetrahedral(ElementBase):
             4. * nc[0] * nc[3],
             4. * nc[3] * nc[1],
             4. * nc[2] * nc[3],
-        ], ti.f64)   
+        ], ti.f64)
 
 
     @ti.func
     def dshape_dnat(self, natCoo):
         """derivative of shape function with respect to natural coodinate"""
-        nc = ti.Vector([natCoo[2], natCoo[0], 
-                        1. - natCoo[0] - natCoo[1] - natCoo[2], 
+        nc = ti.Vector([natCoo[2], natCoo[0],
+                        1. - natCoo[0] - natCoo[1] - natCoo[2],
                         natCoo[1]], ti.f64)
         return ti.Matrix([
             [0., 0., 4.*nc[0] - 1.],  # dshape0 / dnat
@@ -122,7 +124,7 @@ class Element_quadratic_tetrahedral(ElementBase):
             [4.*nc[3], 4.*nc[1], 0.],   # dshape8 / dnat
             [-4.*nc[3], 4.*(nc[2] - nc[3]), -4.*nc[3]],  # dshape9 / dnat
         ], ti.f64)
-    
+
 
     def shapeFunc_pyscope(self, natCoo):  # triangle linear element
         """input the natural coordinate and get the shape function values"""
@@ -132,8 +134,8 @@ class Element_quadratic_tetrahedral(ElementBase):
                         natCoo[1],  # nc[3]
                        ])
         return np.array([
-            nc[0] * (2. * nc[0] - 1.), 
-            nc[1] * (2. * nc[1] - 1.), 
+            nc[0] * (2. * nc[0] - 1.),
+            nc[1] * (2. * nc[1] - 1.),
             nc[2] * (2. * nc[2] - 1.),
             nc[3] * (2. * nc[3] - 1.),
             4. * nc[0] * nc[1],
@@ -147,8 +149,8 @@ class Element_quadratic_tetrahedral(ElementBase):
 
     def dshape_dnat_pyscope(self, natCoo):  # triangle linear element
         """derivative of shape function with respect to natural coodinate"""
-        nc = np.array([natCoo[2], natCoo[0], 
-                        1. - natCoo[0] - natCoo[1] - natCoo[2], 
+        nc = np.array([natCoo[2], natCoo[0],
+                        1. - natCoo[0] - natCoo[1] - natCoo[2],
                         natCoo[1]])
         return np.array([
             [0., 0., 4.*nc[0] - 1.],  # dshape0 / dnat
@@ -166,7 +168,7 @@ class Element_quadratic_tetrahedral(ElementBase):
 
 
     def globalNormal(self, nodes: np.ndarray, facet: list, integPointId=0):
-            """
+        """
             deduce the normal vector in global coordinate for a given facet.
             input:
                 nodes: global coordinates of all nodes of this element,
@@ -177,26 +179,26 @@ class Element_quadratic_tetrahedral(ElementBase):
                 global coordinates of this little facet, 
                 where the length of the vector indicates the area of the boundary facet
             """
-            facet = tuple(sorted(facet))
-            
-            ### facet normal from natural coordinates to global coordinates,  
-            ### must maintain the perpendicular relation between normal and facet, 
-            ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
-            natCoo = self.facet_natural_coos[facet][integPointId]
-            dsdn = self.dshape_dnat_pyscope(natCoo)
-            dxdn = nodes.transpose() @ dsdn
+        facet = tuple(sorted(facet))
 
-            natural_normal = self.facet_natural_normals[facet][integPointId]
-            global_normal = natural_normal @ np.linalg.inv(dxdn)  # n_g = n_t @ (dx/dξ)^(-1)
-            global_normal /= np.linalg.norm(global_normal) + 1.e-30  # normalize
+        ### facet normal from natural coordinates to global coordinates,
+        ### must maintain the perpendicular relation between normal and facet,
+        ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
+        natCoo = self.facet_natural_coos[facet][integPointId]
+        dsdn = self.dshape_dnat_pyscope(natCoo)
+        dxdn = nodes.transpose() @ dsdn
 
-            ### multiply the boundary size and Gauss Weight
-            area = np.cross(nodes[facet[1]] - nodes[facet[0]], 
-                            nodes[facet[2]] - nodes[facet[0]])
-            area = 0.5 * np.linalg.norm(area)                
-            area_x_weight = area * self.facet_point_weights[facet][integPointId]
+        natural_normal = self.facet_natural_normals[facet][integPointId]
+        global_normal = natural_normal @ np.linalg.inv(dxdn)  # n_g = n_t @ (dx/dξ)^(-1)
+        global_normal /= np.linalg.norm(global_normal) + 1.e-30  # normalize
 
-            return global_normal, area_x_weight
+        ### multiply the boundary size and Gauss Weight
+        area = np.cross(nodes[facet[1]] - nodes[facet[0]],
+                        nodes[facet[2]] - nodes[facet[0]])
+        area = 0.5 * np.linalg.norm(area)
+        area_x_weight = area * self.facet_point_weights[facet][integPointId]
+
+        return global_normal, area_x_weight
 
 
     @ti.func
@@ -210,12 +212,12 @@ class Element_quadratic_tetrahedral(ElementBase):
                 e.g., m = 30 (10 nodes x 3-dimension) for qudratic tetrahedral element
         """
         return ti.Matrix([
-            [dsdx[0, 0], 0., 0.,    dsdx[1, 0], 0., 0., 
-             dsdx[2, 0], 0., 0.,    dsdx[3, 0], 0., 0.,  
-             dsdx[4, 0], 0., 0.,    dsdx[5, 0], 0., 0., 
-             dsdx[6, 0], 0., 0.,    dsdx[7, 0], 0., 0., 
+            [dsdx[0, 0], 0., 0.,    dsdx[1, 0], 0., 0.,
+             dsdx[2, 0], 0., 0.,    dsdx[3, 0], 0., 0.,
+             dsdx[4, 0], 0., 0.,    dsdx[5, 0], 0., 0.,
+             dsdx[6, 0], 0., 0.,    dsdx[7, 0], 0., 0.,
              dsdx[8, 0], 0., 0.,    dsdx[9, 0], 0., 0., ],  # strain0
-            
+
             [0., dsdx[0, 1], 0.,    0., dsdx[1, 1], 0.,
              0., dsdx[2, 1], 0.,    0., dsdx[3, 1], 0.,
              0., dsdx[4, 1], 0.,    0., dsdx[5, 1], 0.,
@@ -227,7 +229,7 @@ class Element_quadratic_tetrahedral(ElementBase):
              0., 0., dsdx[4, 2],    0., 0., dsdx[5, 2],
              0., 0., dsdx[6, 2],    0., 0., dsdx[7, 2],
              0., 0., dsdx[8, 2],    0., 0., dsdx[9, 2],], # strain2
-            
+
             [dsdx[0, 1], dsdx[0, 0], 0.,    dsdx[1, 1], dsdx[1, 0], 0.,
              dsdx[2, 1], dsdx[2, 0], 0.,    dsdx[3, 1], dsdx[3, 0], 0.,
              dsdx[4, 1], dsdx[4, 0], 0.,    dsdx[5, 1], dsdx[5, 0], 0.,
@@ -253,19 +255,19 @@ class Element_quadratic_tetrahedral(ElementBase):
         mesh = set()
         face2ele = {}  # from face to element
         for iele, ele in enumerate(elements):
-            faces = [ 
+            faces = [
                 # ele[1], ele[2], ele[3],
                 (ele[1], ele[5], ele[8]), (ele[3], ele[8], ele[9]),
                 (ele[2], ele[5], ele[9]), (ele[5], ele[9], ele[8]),
-                
+
                 # ele[0], ele[2], ele[3],
                 (ele[0], ele[6], ele[7]), (ele[3], ele[7], ele[9]),
                 (ele[2], ele[9], ele[6]), (ele[6], ele[7], ele[9]),
 
-                # ele[0], ele[1], ele[3], 
+                # ele[0], ele[1], ele[3],
                 (ele[0], ele[4], ele[7]), (ele[1], ele[8], ele[4]),
                 (ele[3], ele[7], ele[8]), (ele[4], ele[7], ele[8]),
-                
+
                 # ele[0], ele[1], ele[2]
                 (ele[0], ele[4], ele[6]), (ele[1], ele[5], ele[4]),
                 (ele[2], ele[6], ele[5]), (ele[4], ele[5], ele[6]),
@@ -282,7 +284,7 @@ class Element_quadratic_tetrahedral(ElementBase):
         for face in face2ele:
             if len(face2ele[face]) == 1:
                 surfaces.add(face)
-        
+
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
 

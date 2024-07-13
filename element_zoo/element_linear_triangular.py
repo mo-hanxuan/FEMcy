@@ -1,3 +1,4 @@
+# yapf: disable
 
 import numpy as np
 import taichi as ti
@@ -32,28 +33,28 @@ class Element_linear_triangular(ElementBase):
         ###     keys: tuple(id1, id2), use sorted tuple for convenience
         ###     values: natural coodinates of different Gauss points
         self.facet_natural_coos = {
-            (0, 1): [[0.5, 0.5], ], 
+            (0, 1): [[0.5, 0.5], ],
             (1, 2): [[0., 0.5], ],  # only one gauss points for each facet
             (0, 2): [[0.5, 0.], ],
         }
         self.facet_point_weights = {
-            (0, 1): [1., ], 
+            (0, 1): [1., ],
             (1, 2): [1., ],  # only one gauss points for each facet
             (0, 2): [1., ],
         }
 
         """ facet normals in natural coordinate,
         must points to the outside of the element"""
-        self.facet_natural_normals = {  
+        self.facet_natural_normals = {
             ###     [[dξ, dη], ] each Gauss Point corresponds to a vector
-            (0, 1): [[2**0.5/2., 2**0.5/2.], ], 
-            (1, 2): [[-1., 0.], ],  
+            (0, 1): [[2**0.5/2., 2**0.5/2.], ],
+            (1, 2): [[-1., 0.], ],
             (0, 2): [[0., -1.], ],
         }
 
         """facet number for reading .inp (Abaqus, CalculiX) file and get the face set"""
         self.inp_surface_num = [((0, 1), ),  # the counterpart in quadratic element is ((0, 3), (3, 1))
-                                ((1, 2), ), 
+                                ((1, 2), ),
                                 ((2, 0), )]
 
 
@@ -100,9 +101,9 @@ class Element_linear_triangular(ElementBase):
         assert len(facet) == 2  # 2 nodes on a facet of triangle linear element
         assert len(nodes) == 3  # 3 nodes of entire element
         facet = tuple(sorted(facet))
-        
-        ### facet normal from natural coordinates to global coordinates,  
-        ### must maintain the perpendicular relation between normal and facet, 
+
+        ### facet normal from natural coordinates to global coordinates,
+        ### must maintain the perpendicular relation between normal and facet,
         ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
         natCoo = self.facet_natural_coos[facet][integPointId]
         dsdn = self.dshape_dnat_pyscope(natCoo)
@@ -133,19 +134,19 @@ class Element_linear_triangular(ElementBase):
             [dsdx[0, 0], 0.,
             dsdx[1, 0], 0.,
             dsdx[2, 0], 0.],  # strain0
-            
+
             [0., dsdx[0, 1],
             0., dsdx[1, 1],
             0., dsdx[2, 1]], # strain1
-            
+
             [dsdx[0, 1], dsdx[0, 0],
             dsdx[1, 1], dsdx[1, 0],
             dsdx[2, 1], dsdx[2, 0]],  # gammaxy
         ], ti.f64)
 
 
-    def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray, 
-                          surfaceEdges: np.ndarray, 
+    def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray,
+                          surfaceEdges: np.ndarray,
                           bottomleft: np.ndarray, stretchRatio: float,
                         ):  # convert the quadratic triangle to 4 triangular parts
         """
@@ -187,8 +188,8 @@ class Element_linear_triangular(ElementBase):
         mesh = set()
         face2ele = {}  # from face to element
         for iele, ele in enumerate(elements):
-            faces = [ 
-                (ele[0], ele[1], ele[2]), 
+            faces = [
+                (ele[0], ele[1], ele[2]),
             ]
             faces = list(map(lambda face: tuple(sorted(face)), faces))
             for face in faces:
@@ -202,7 +203,7 @@ class Element_linear_triangular(ElementBase):
         for face in face2ele:
             if len(face2ele[face]) == 1:
                 surfaces.add(face)
-        
+
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
 
@@ -230,16 +231,16 @@ if __name__ == "__main__":
 
     ### test the global coordinates of the facet normals
     nodes = np.array([
-        [0., 0.], 
-        [30., 10.], 
+        [0., 0.],
+        [30., 10.],
         [35., 0.],
     ])
 
     ELE = Element_linear_triangular()
 
-    print("element_triangle_linear.global_normal(nodes, [1, 0]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [1, 0]) = ",
           ELE.globalNormal(nodes, [1, 0]))
-    print("element_triangle_linear.global_normal(nodes, [1, 2]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [1, 2]) = ",
           ELE.globalNormal(nodes, [1, 2]))
-    print("element_triangle_linear.global_normal(nodes, [0, 2]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [0, 2]) = ",
           ELE.globalNormal(nodes, [0, 2]))

@@ -1,4 +1,4 @@
-
+# yapf: disable
 
 import numpy as np
 import taichi as ti
@@ -45,7 +45,7 @@ class Element_quadratic_triangular(ElementBase):
             (0, 5): [[0.5, 0.], [1., 0.]],
         }
         self.facet_point_weights = {
-            (0, 3): [0.5, 0.5], 
+            (0, 3): [0.5, 0.5],
             (1, 3): [0.5, 0.5],
             (1, 4): [0.5, 0.5],
             (2, 4): [0.5, 0.5],
@@ -56,9 +56,9 @@ class Element_quadratic_triangular(ElementBase):
 
         """ facet normals in natural coordinate,
         must points to the outside of the element"""
-        self.facet_natural_normals = {  
+        self.facet_natural_normals = {
             ###     [[dξ, dη], ] each Gauss Point corresponds to a vector
-            (0, 3): [[1., 1.], [1., 1.]],  
+            (0, 3): [[1., 1.], [1., 1.]],
             (1, 3): [[1., 1.], [1., 1.]],
             (1, 4): [[-1., 0.], [-1., 0.]],
             (2, 4): [[-1., 0.], [-1., 0.]],
@@ -67,18 +67,18 @@ class Element_quadratic_triangular(ElementBase):
         }
 
         """facet number for reading .inp (Abaqus, CalculiX) file and get the face set"""
-        self.inp_surface_num = [((0, 3), (3, 1)), 
-                                ((1, 4), (4, 2)), 
+        self.inp_surface_num = [((0, 3), (3, 1)),
+                                ((1, 4), (4, 2)),
                                 ((2, 5), (5, 0))]
 
 
     @ti.func
-    def shapeFunc(self, natCoo):  
+    def shapeFunc(self, natCoo):
         """input the natural coordinate and get the shape function values"""
         nc = ti.Vector([natCoo[0], natCoo[1], 1. - natCoo[0] - natCoo[1]], ti.f64)
         return ti.Vector([
-            nc[0] * (2. * nc[0] - 1.), 
-            nc[1] * (2. * nc[1] - 1.), 
+            nc[0] * (2. * nc[0] - 1.),
+            nc[1] * (2. * nc[1] - 1.),
             nc[2] * (2. * nc[2] - 1.),
             4. * nc[0] * nc[1],
             4. * nc[1] * nc[2],
@@ -104,8 +104,8 @@ class Element_quadratic_triangular(ElementBase):
         """input the natural coordinate and get the shape function values"""
         nc = np.array([natCoo[0], natCoo[1], 1. - natCoo[0] - natCoo[1]])
         return np.array([
-            nc[0] * (2. * nc[0] - 1.), 
-            nc[1] * (2. * nc[1] - 1.), 
+            nc[0] * (2. * nc[0] - 1.),
+            nc[1] * (2. * nc[1] - 1.),
             nc[2] * (2. * nc[2] - 1.),
             4. * nc[0] * nc[1],
             4. * nc[1] * nc[2],
@@ -141,9 +141,9 @@ class Element_quadratic_triangular(ElementBase):
         assert len(facet) == 2  # a facet defined by 2 nodes
         assert len(nodes) == 6  # 6 nodes of entire element
         facet = tuple(sorted(facet))
-        
-        ### facet normal from natural coordinates to global coordinates,  
-        ### must maintain the perpendicular relation between normal and facet, 
+
+        ### facet normal from natural coordinates to global coordinates,
+        ### must maintain the perpendicular relation between normal and facet,
         ### thus, the operation is: n_g = n_t @ (dx/dξ)^(-1)
         natCoo = self.facet_natural_coos[facet][integPointId]
         dsdn = self.dshape_dnat_pyscope(natCoo)
@@ -157,7 +157,7 @@ class Element_quadratic_triangular(ElementBase):
                                 self.facet_point_weights[facet][integPointId]
 
         return global_normal, area_x_weight
-    
+
 
     @ti.func
     def strainMtrx(self, dsdx):
@@ -173,7 +173,7 @@ class Element_quadratic_triangular(ElementBase):
             0., dsdx[1, 1],
             0., dsdx[2, 1],
             0., dsdx[3, 1],
-            0., dsdx[4, 1], 
+            0., dsdx[4, 1],
             0., dsdx[5, 1]],
 
             [dsdx[0, 1], dsdx[0, 0],
@@ -185,8 +185,8 @@ class Element_quadratic_triangular(ElementBase):
         ], ti.float64)
 
 
-    def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray, 
-                          surfaceEdges: np.ndarray, 
+    def show_triangles_2d(self, elements: np.ndarray, nodes: np.ndarray,
+                          surfaceEdges: np.ndarray,
                           bottomleft: np.ndarray, stretchRatio: float,
                           refine=1):  # convert the quadratic triangle to 4 triangular parts
         """
@@ -206,10 +206,10 @@ class Element_quadratic_triangular(ElementBase):
                      2nd dimension is for spatial dimension
             line0, line1: both begin nodes and end nodes of each line
         """
-        ### the sequence should be the same with cases of 4 gauss points 
+        ### the sequence should be the same with cases of 4 gauss points
         ###     (each gauss point corresponds to a strain or stress value)
-        tri_indexes = [  
-            [4, 2, 5], [3, 5, 0], 
+        tri_indexes = [
+            [4, 2, 5], [3, 5, 0],
             [1, 4, 3], [4, 3, 5]
         ]
         e_num = elements.shape[0]
@@ -220,7 +220,7 @@ class Element_quadratic_triangular(ElementBase):
                 a[iele*4 + i_tri, :] = (nodes[ele[tri[0]], :] - bottomleft) * stretchRatio * 0.95
                 b[iele*4 + i_tri, :] = (nodes[ele[tri[1]], :] - bottomleft) * stretchRatio * 0.95
                 c[iele*4 + i_tri, :] = (nodes[ele[tri[2]], :] - bottomleft) * stretchRatio * 0.95
-        
+
         line0 = np.array([nodes[line[0]] for line in surfaceEdges])
         line1 = np.array([nodes[line[1]] for line in surfaceEdges])
         line0 = (line0 - bottomleft) * stretchRatio * 0.95
@@ -241,7 +241,7 @@ class Element_quadratic_triangular(ElementBase):
         mesh = set()
         face2ele = {}  # from face to element
         for iele, ele in enumerate(elements):
-            faces = [ 
+            faces = [
                 (ele[0], ele[3], ele[5]), (ele[1], ele[3], ele[4]),
                 (ele[2], ele[4], ele[5]), (ele[3], ele[4], ele[5]),
             ]
@@ -257,12 +257,12 @@ class Element_quadratic_triangular(ElementBase):
         for face in face2ele:
             if len(face2ele[face]) == 1:
                 surfaces.add(face)
-        
+
         mesh = np.array(list(mesh)); surfaces = np.array(list(surfaces))
         return mesh, face2ele, surfaces
 
 
-    @ti.kernel 
+    @ti.kernel
     def extrapolate(self, internal_vals: ti.template(), nodal_vals: ti.template()):
         """extrapolate the internal Gauss points' vals to the nodal vals
            no averaging is performing here, we want to get the nodal vals patch by patch,
@@ -310,8 +310,8 @@ if __name__ == "__main__":
 
     ### test the global coordinates of the facet normals
     nodes = np.array([
-        [0., 0.], 
-        [30., 10.], 
+        [0., 0.],
+        [30., 10.],
         [35., 0.],
         [16, 4.],
         [32, 4],
@@ -320,11 +320,11 @@ if __name__ == "__main__":
 
     ELE = Element_quadratic_triangular()
 
-    print("element_triangle_linear.global_normal(nodes, [0, 3]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [0, 3]) = ",
           ELE.globalNormal(nodes, [0, 3]))
-    print("element_triangle_linear.global_normal(nodes, [3, 1]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [3, 1]) = ",
           ELE.globalNormal(nodes, [3, 1]))
-    print("element_triangle_linear.global_normal(nodes, [1, 4]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [1, 4]) = ",
           ELE.globalNormal(nodes, [1, 4]))
-    print("element_triangle_linear.global_normal(nodes, [4, 2]) = ", 
+    print("element_triangle_linear.global_normal(nodes, [4, 2]) = ",
           ELE.globalNormal(nodes, [4, 2]))
