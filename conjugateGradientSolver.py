@@ -1,7 +1,6 @@
 import taichi as ti
 from time import time
 
-from readInp import *
 import yaml
 
 

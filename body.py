@@ -7,8 +7,6 @@ import taichi as ti
 import tiGadgets as tg
 from colorBar import getColor
 
-from readInp import Inp_info
-
 
 @ti.data_oriented
 class Body:
@@ -294,14 +292,4 @@ class Body:
         return red, green, blue
 
 
-if __name__ == "__main__":
-    ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
-    fileName = input("\033[32;1m please give the "
-                     "input file path and name: \033[0m")
 
-    inp = Inp_info(fileName)
-    nodes, eSets = inp.nodes, inp.eSets
-    body = Body(nodes=nodes, elements=list(eSets.values())[0])
-
-    # body.show()
-    # body.show2d()
