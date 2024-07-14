@@ -1,3 +1,4 @@
+# yapf: disable
 """
     read the .inp file (Abaqus input file format) and 
     get the info about the geometric model, mesh, boundary condition, material, etc.
@@ -7,12 +8,13 @@ import taichi as ti
 import os; import copy; import sys
 from element_zoo import *
 from material_zoo import *
+from inp_info_base import InpInfoBase
 
 
-class Inp_info(object):
+class InpInfo(InpInfoBase):
     """extract information from .inp file 
     (using Abaqus or CalculiX's input file format)"""
-    
+
     def __init__(self, file) -> None:
         self.nodes, self.eSets = self.read_node_element(file)
         self.node_sets, self.ele_sets = self.read_set(file)  # sub-set
@@ -36,12 +38,12 @@ class Inp_info(object):
             for line in file:
                 if '*' in line:
                     if cout: break
-                
+
                 if cout:
                     data = line.split(',')
                     data = list(map(float, data))
                     nodes[int(data[0])] = data[1:]
-                
+
                 if '*Node' in line or '*NODE' in line or '*node' in line:
                     cout = True
 
@@ -52,7 +54,7 @@ class Inp_info(object):
             for line in file:
                 if '*' in line:
                     cout = False
-                
+
                 if cout:
                     data = line[:-1].rstrip().rstrip(',')
                     data = data.split(',')
@@ -60,10 +62,10 @@ class Inp_info(object):
                     for x in data:
                         tex.append(x)
                     text[currentType].extend(tex)
-                
+
                 if '*ELEMENT' in line or '*Element' in line or '*element' in line:
-                    for type_ in ["C3D8", "C3D20", "C3D4", "C3D10", "B31", "C3D6", 
-                                "CPS3", "CPE3", "CPE4", "CPS4", "CPE8", "CPS8", 
+                    for type_ in ["C3D8", "C3D20", "C3D4", "C3D10", "B31", "C3D6",
+                                "CPS3", "CPE3", "CPE4", "CPS4", "CPE8", "CPS8",
                                 "CPS6", "CPE6"]:  # the surported element types
                         if ("TYPE=" in line or "type=" in line) and type_ in line:
                             if type_ not in text:
@@ -97,24 +99,24 @@ class Inp_info(object):
                 elements = elements.reshape((-1, 3))
                 elements = elements[:, 1:]
             elif eType == "CPS3" or eType == "CPE3":
-                    elements = elements.reshape((-1, 4))
-                    elements = elements[:, 1:]
+                elements = elements.reshape((-1, 4))
+                elements = elements[:, 1:]
             elif eType == "C3D6":
-                    elements = elements.reshape((-1, 7))
-                    elements = elements[:, 1:]
+                elements = elements.reshape((-1, 7))
+                elements = elements[:, 1:]
             elif eType == "CPS6" or eType == "CPE6":
-                    elements = elements.reshape((-1, 7))
-                    elements = elements[:, 1:]
+                elements = elements.reshape((-1, 7))
+                elements = elements[:, 1:]
             else:
                 print("\033[31;1m Error, element type {} is not found! \033[0m".format(eType))
                 sys.exit(1)
             eSets[eType] = elements
-        
+
         ### transform the dictionary to np.ndarray, so that all index starts with 0
         nodes, eSets = self.sequence_order_of_body(nodes, eSets)
 
         ele_types = {"CPE3": Element_linear_triangular, "CPS3": Element_linear_triangular,
-                     "CPE4": Element_linear_quadrilateral, "CPS4": Element_linear_quadrilateral, 
+                     "CPE4": Element_linear_quadrilateral, "CPS4": Element_linear_quadrilateral,
                      "CPS6": Element_quadratic_triangular, "CPE6": Element_quadratic_triangular,
                      "CPS8": Element_quadratic_quadrilateral, "CPE8": Element_quadratic_quadrilateral,
                      "C3D4": Element_linear_tetrahedral, "C3D10": Element_quadratic_tetrahedral}
@@ -159,7 +161,7 @@ class Inp_info(object):
                         sets[set_name] |= {*np.arange(data[0], data[1] + data[2], data[2])}
                     else:
                         sets[set_name] |= {*data}
-        ### the number should start from 0 
+        ### the number should start from 0
         for set_ in node_sets:
             node_sets[set_] = np.array([*node_sets[set_]]) - 1
         for set_ in ele_sets:
@@ -193,7 +195,7 @@ class Inp_info(object):
                     line = line.split("\n")[0]
                     splited_line = line.split(",")
                     face_sets[set_name].append({"ele_set": splited_line[0], "face_num": splited_line[1]})
-        
+
         ### unfold the face set
         node_sets, ele_sets = self.read_set(fileName)
         ele_type = list(eSets.keys())[0]
@@ -207,13 +209,13 @@ class Inp_info(object):
                 for iele in ele_sets[fset["ele_set"]]:
                     for local_nodes in face2node[fnum]:
                         global_nodes = (eSets[ele_type][iele][local_node] for local_node in local_nodes)
-                        face_sets[face_set].add(tuple(sorted(global_nodes)))  # modified later             
+                        face_sets[face_set].add(tuple(sorted(global_nodes)))  # modified later
         return face_sets
 
 
     def get_boundary_condition(self, fileName):
         if not hasattr(self, "node_sets"):
-            self.node_sets, self.ele_sets = self.read_set(fileName) 
+            self.node_sets, self.ele_sets = self.read_set(fileName)
         if not hasattr(self, "face_sets"):
             self.face_sets = self.read_face_set(fileName)
 
@@ -240,7 +242,7 @@ class Inp_info(object):
                     disp = float(splited_line[3]) if len(splited_line) >= 4 else 0.
                     dirichlet_bc_info.append(
                         {"node_set": self.node_sets[set_name], "dof": dof - 1, "val": disp, "user": user})
-        
+
         ### get the Neumann boundary condition
         neumann_bc_info = []
         with open(fileName, "r") as file:
@@ -265,10 +267,10 @@ class Inp_info(object):
                         surface_traction = float(splited_line[2])
                         direction = list(map(float, splited_line[3:6]))
                         neumann_bc_info.append(
-                            {"face_set": self.face_sets[set_name], "traction": surface_traction, 
+                            {"face_set": self.face_sets[set_name], "traction": surface_traction,
                             "direction": np.array(direction)})
         return dirichlet_bc_info, neumann_bc_info
-    
+
 
     def read_material(self, fileName='./donut.inp'):
         materials = {}
@@ -297,22 +299,22 @@ class Inp_info(object):
                     raise ValueError("only support linear elastic material for 2d element now.")
                 else:
                     if ele_type[0:3] == "CPS":
-                        materials[key] = LinearIsotropicPlaneStress(modulus=materials["Elastic"][0], 
+                        materials[key] = LinearIsotropicPlaneStress(modulus=materials["Elastic"][0],
                                                                 poisson_ratio=materials["Elastic"][1])
                     elif ele_type[0:3] == "CPE":
-                        materials[key] = LinearIsotropicPlaneStrain(modulus=materials["Elastic"][0], 
+                        materials[key] = LinearIsotropicPlaneStrain(modulus=materials["Elastic"][0],
                                                                 poisson_ratio=materials["Elastic"][1])
         elif ele_type[0:3] == "C3D":
             for key in materials:
                 if key == "Elastic":
-                    materials[key] = LinearIsotropic(modulus=materials["Elastic"][0], 
+                    materials[key] = LinearIsotropic(modulus=materials["Elastic"][0],
                                                 poisson_ratio=materials["Elastic"][1])
                 elif "neo hooke" in key:
                     materials[key] = NeoHookean(C1=materials[key][0], D1=1./materials[key][1])
                 else:
                     raise ValueError("material type {} has not been supported now".format(key))
         return materials
-    
+
 
     def read_geometric_nonlinear(self, fileName: str='./donut.inp') -> bool:
         """read the inp file and get whether geometric nonlinear is on"""
@@ -326,7 +328,7 @@ class Inp_info(object):
                         geometric_nonlinear = True
                     break
         return geometric_nonlinear
-    
+
 
     def read_time_inc(self, fileName: str):
         """read time increment"""
@@ -340,13 +342,13 @@ class Inp_info(object):
                         continue
                     line = line.split("\n")[0].split(",")
                     line = list(map(float, line))
-                    time_incs = {"ini_inc": line[0], "max_time": line[1], 
+                    time_incs = {"ini_inc": line[0], "max_time": line[1],
                                  "min_inc": line[2], "max_inc": line[3]}
                     break
         if time_incs["ini_inc"] > time_incs["max_inc"]:
             time_incs["ini_inc"] = time_incs["max_inc"]
-        return time_incs    
-            
+        return time_incs
+
 
     def sequence_order_of_body(self, nodes, eSets):
         """
@@ -370,7 +372,7 @@ if __name__ == "__main__":
     os.system("")
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     file = input("\033[32;1m please give the file path/name: \033[0m")
-    inp = Inp_info(file)
+    inp = InpInfo(file)
     print("nodes = \n{}\n  eSets = \n{}".format(inp.nodes, inp.eSets))
 
     for eType in inp.eSets:

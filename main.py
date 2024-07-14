@@ -1,6 +1,6 @@
 import taichi as ti
 from stiffnessMtrx import System_of_equations
-from readInp import *
+from reader.inp_info import *
 from body import Body
 from tiGadgets import field_abs_max, scalerField_from_matrixField, vectorField_max
 import time, os
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     inpPath = fileName[:-len(inpName + ".inp")]
 
     ### use the inp file to apply finite element analysis
-    inp = Inp_info(fileName)
+    inp = InpInfo(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0], ELE=inp.ELE)
     material = list(inp.materials.values())[0]

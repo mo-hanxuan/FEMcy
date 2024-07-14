@@ -1,3 +1,4 @@
+# yapf: disable
 """
 construct the stiffness matrix
 """
@@ -5,12 +6,13 @@ import taichi as ti
 import numpy as np
 import time; from typing import Tuple, Union
 from body import Body
-from readInp import *
+from reader.inp_info_base import InpInfoBase
 from conjugateGradientSolver import ConjugateGradientSolver_rowMajor as CG
 import user_defined as ud
 import tiGadgets as tg
 import scipy.sparse as sp
 import scipy.sparse.linalg as sl
+import copy
 
 
 @ti.data_oriented
@@ -25,45 +27,45 @@ class System_of_equations:
         self.dm = body.dm  # spatial dimension of the system
         self.geometric_nonlinear = geometric_nonlinear
         self.body = body
-        self.elements, self.nodes = body.elements, body.nodes 
-        
+        self.elements, self.nodes = body.elements, body.nodes
+
         ### sparseMtrx @ dof = rhs
         self.rhs = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # right hand side of the equation system
         self.dof = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  # degree of freedom that needs to be solved
-        
+
         ### define the element types of the body
         self.ELE = body.ELE
 
         ### deformation gradient
-        self.F = ti.Matrix.field(self.dm, self.dm, ti.f64, 
+        self.F = ti.Matrix.field(self.dm, self.dm, ti.f64,
                                 shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
-        
+
         ### stress and strain (infinitesimal strain for small deformation and Green strain for large deformation)
-        self.cauchy_stress = ti.Matrix.field(self.dm, self.dm, ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))  
-        self.strain = ti.Matrix.field(self.dm, self.dm, ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0])) 
-        self.mises_stress = ti.field(ti.f64, 
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
+        self.cauchy_stress = ti.Matrix.field(self.dm, self.dm, ti.f64,
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
+        self.strain = ti.Matrix.field(self.dm, self.dm, ti.f64,
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
+        self.mises_stress = ti.field(ti.f64,
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         self.elsEngDens = ti.field(ti.f64,  # elastic energy density
-                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))  
+                        shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         self.elsEng = ti.field(ti.f64, shape=())  # total elastic energy
 
-        ### variables related to geometric nonlinear                              
-        self.nodal_force = ti.field(ti.f64, shape=(self.dm * self.body.nodes.shape[0]))  
+        ### variables related to geometric nonlinear
+        self.nodal_force = ti.field(ti.f64, shape=(self.dm * self.body.nodes.shape[0]))
         self.residual_nodal_force = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))
 
         ### dsdx (derivative of shape functio with respect to current coordinate), and volume of each guass point
-        self.dsdx = ti.Matrix.field(self.elements[0].n, self.dm, ti.f64, 
+        self.dsdx = ti.Matrix.field(self.elements[0].n, self.dm, ti.f64,
                                     shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         self.vol = ti.field(ti.f64, shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
-        
+
         ### constitutive material (e.g., elastic constants) of each element
         self.material = material; self.C = material.C
-        self.ddsdde = ti.Matrix.field(n=material.C.n, m=material.C.m, dtype=ti.f64, 
+        self.ddsdde = ti.Matrix.field(n=material.C.n, m=material.C.m, dtype=ti.f64,
                                       shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
         self.ddsdde_init()
-        
+
         ### link a node to the related elements
         body.get_nodeEles()
         maxLen = max(len(eles) for eles in body.nodeEles)
@@ -76,7 +78,7 @@ class System_of_equations:
         ### get the sparseIJ (index 0 of each row stores the number of effective indexes in this row)
         body.get_coElement_nodes()
         maxLen = max(len(body.coElement_nodes[node]) for node in range(body.nodes.shape[0]))
-        self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32, 
+        self.sparseIJ = ti.Vector.field(maxLen * self.dm + 1, ti.i32,
             shape=(self.nodes.shape[0] * self.dm, ))
         sparseIJ = -np.ones((self.nodes.shape[0] * self.dm, maxLen * self.dm + 1))
         for node0 in range(self.nodes.shape[0]):
@@ -88,7 +90,7 @@ class System_of_equations:
 
         ### init the row major form of sparse matrix
         print("\033[32;1m shape of the sparseIJ is {} \033[0m".format(self.sparseIJ.shape))
-        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64, 
+        self.sparseMtrx_rowMajor = ti.Vector.field(self.sparseIJ[0].n - 1, ti.f64,
             shape=(self.sparseIJ.shape[0], ))
         self.du = ti.field(ti.f64, shape=(self.nodes.shape[0] * self.dm))
 
@@ -108,14 +110,14 @@ class System_of_equations:
         self.time0 = 0.; self.time1 = 0.
         self.dt = 0.
         # degree of freedom at last time step
-        self.dof_old = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))  
+        self.dof_old = ti.field(ti.f64, shape=(body.nodes.shape[0] * body.dm, ))
 
         ### some variables for print
         self.compiled = False  # indicate whether the assemble_sparseMtrx has been compiled
         # a field for visualization, you can visualize some idexes of stress or strain
-        self.visualize_field = ti.field(ti.f64,  
-            shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))   
-        self.nodal_vals = ti.Vector.field(self.elements[0].n, ti.f64, 
+        self.visualize_field = ti.field(ti.f64,
+            shape=(self.elements.shape[0], self.ELE.gaussPoints.shape[0]))
+        self.nodal_vals = ti.Vector.field(self.elements[0].n, ti.f64,
             shape=(self.elements.shape[0],)) # visualization of nodal strain or stress
 
 
@@ -127,7 +129,7 @@ class System_of_equations:
             self.ddsdde[ele, igp] = self.C
 
 
-    @ti.kernel 
+    @ti.kernel
     def get_dsdx_and_vol(self, ):
         """update dsdx (∇N) and volume before assemble stiffness matrix"""
         dm, elements, nodes, dof, gaussPoints  = ti.static(
@@ -138,7 +140,7 @@ class System_of_equations:
                 for j in range(localNodes.m):
                     localNodes[i, j] = nodes[elements[ele][i]][j] + \
                                         dof[elements[ele][i] * dm + j]  # nodes coos at current configuration
-            
+
             ### get dsdx and vol of each integration point
             for igp in range(gaussPoints.shape[0]):
                 gp = gaussPoints[igp]
@@ -153,7 +155,7 @@ class System_of_equations:
         if tiMatrixShape <= 10:  # involve small ti.Matrix()
             self.assemble_stiffnessMtrx()
         else:  # involve large ti.Matrix(), use faster version to save compile time
-            self.assemble_stiffnessMtrx_faster() 
+            self.assemble_stiffnessMtrx_faster()
 
 
     @ti.kernel
@@ -162,13 +164,13 @@ class System_of_equations:
            update self.dsdx (∇N) and self.vol before assemble this"""
         dm, sparseMtrx_rowMajor, elements, ddsdde, vol, dsdx = ti.static(
             self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde, self.vol, self.dsdx)
-        
+
         sparseMtrx_rowMajor.fill(0.)
         for ele, igp in vol:  # parallel by integration points
             strain = self.ELE.strainMtrx(dsdx[ele, igp])  # strain B(∇N), B·u = ε
             stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
             bcb = strain.transpose() @ stress_voigt  # stiffness, BT·C·B
-            
+
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
                 node0 = elements[ele][node]  # global node index
@@ -190,7 +192,7 @@ class System_of_equations:
            (also, update self.dsdx (∇N) and self.vol before assemble this)"""
         dm, sparseMtrx_rowMajor, elements, ddsdde, vol = ti.static(
             self.body.dm, self.sparseMtrx_rowMajor, self.elements, self.ddsdde, self.vol)
-        
+
         sparseMtrx_rowMajor.fill(0.)
         for ele, igp in vol:  # parallel by integration points
             dsdx = self.dsdx[ele, igp]  # ∇N, the updated grad of shape function
@@ -210,8 +212,8 @@ class System_of_equations:
                         j = self.sparseMatrix_get_j(i_global, j_global)
                         ### atomic add to related node
                         sparseMtrx_rowMajor[i_global][j] += \
-                            dsdx_x_stress[i_local, j_local] * vol[ele, igp] 
-    
+                            dsdx_x_stress[i_local, j_local] * vol[ele, igp]
+
 
     def solve_by_scipy(self, ):
         ### conver some field to np.array
@@ -225,8 +227,8 @@ class System_of_equations:
                 id += 1
                 self.K[id] = sparseMtrx_rowMajor[i, j_]
         time0 = time.time()
-        K = sp.csr_matrix((self.K, (self.rows, self.cols)), 
-                          shape=(sparseIJ.shape[0], 
+        K = sp.csr_matrix((self.K, (self.rows, self.cols)),
+                          shape=(sparseIJ.shape[0],
                                  sparseIJ.shape[0]), dtype=np.float64)
 
         ### solve the sparse matrix equation AX = B
@@ -234,7 +236,7 @@ class System_of_equations:
             self.du.from_numpy(sl.spsolve(K, self.rhs.to_numpy()))
         else:
             self.du.from_numpy(sl.spsolve(K, self.residual_nodal_force.to_numpy()))
-        
+
         time1 = time.time()
         print(f"\033[32;1m assuming time for sparse matrix solving "
               f"in scipy is {time1 - time0} s \033[0m")
@@ -244,9 +246,9 @@ class System_of_equations:
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
             tg.c_equals_a_minus_b(self.dof, self.dof, self.du)
-        
+
         return self.du
-    
+
 
     def solve_by_CG(self):
         if not hasattr (self, "PCG"):
@@ -254,7 +256,7 @@ class System_of_equations:
                 self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.rhs)
             else:
                 self.PCG = CG(spm=self.sparseMtrx_rowMajor, sparseIJ=self.sparseIJ, b=self.residual_nodal_force)
-        self.PCG.re_init() 
+        self.PCG.re_init()
         self.PCG.solve()
 
         if not self.geometric_nonlinear:
@@ -262,9 +264,9 @@ class System_of_equations:
         else:
             ### self.dof = self.dof - solver.x (in Newton's method)
             tg.c_equals_a_minus_b(self.dof, self.dof, self.PCG.x)
-        
+
         return self.PCG.x
-    
+
 
     def solve_dof(self, ):
         if self.dof.shape[0] < 1e5:  # critical matrix size
@@ -274,7 +276,7 @@ class System_of_equations:
 
 
     @ti.kernel
-    def dirichletBC_linearEquations(self, 
+    def dirichletBC_linearEquations(self,
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     ):
@@ -306,20 +308,20 @@ class System_of_equations:
 
     def dirichletBC_forNewtonMethod(self, dirichletBCs):
         for dirichletBC in dirichletBCs:
-            self.dirichletBC_dof(dirichletBC["node_set"], dirichletBC["dof"], 
+            self.dirichletBC_dof(dirichletBC["node_set"], dirichletBC["dof"],
                                 dirichletBC["val"], dirichletBC["user"], self.time1)
-            self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"], 
+            self.dirichletBC_forNewtonMethod_kernel(nodeSet=dirichletBC["node_set"],
                                                     dm_specified=dirichletBC["dof"],
                                                     sval=dirichletBC["val"])
     @ti.kernel
-    def dirichletBC_forNewtonMethod_kernel(self, 
+    def dirichletBC_forNewtonMethod_kernel(self,
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     ):
         """apply dirichlet boundary condition to the body
            modify the sparse matrix and the residual force
            this is for Newton method, ref: https://scorec.rpi.edu/~granzb/notes/dbcs/dbcs.pdf """
-        
+
         ### impose dirichlet BC at residual force and sparse matrix
         for node_ in nodeSet:
             node = nodeSet[node_]
@@ -336,23 +338,23 @@ class System_of_equations:
                 self.sparseMtrx_rowMajor[j_global][i0] = 0.
             i0 = self.sparseMatrix_get_j(i_global, i_global)
             self.sparseMtrx_rowMajor[i_global][i0] = 1.
-    
 
-    def dirichletBC_dof(self, 
+
+    def dirichletBC_dof(self,
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     user: bool,  # ture means using user defined boundary condition
-                    time: float, 
+                    time: float,
                     ):
         if not user:
             self.dirichletBC_val(nodeSet, dm_specified, sval)
         else:
             ud.user_dirichletBC(
                 self.dof, nodeSet, self.dm, dm_specified, self.nodes, time)
-    
+
 
     @ti.kernel
-    def dirichletBC_val(self, 
+    def dirichletBC_val(self,
                     nodeSet: ti.template(), dm_specified: int,  # the specified dimendion of dirichlet BC 
                     sval: float,  # specific value of dirichlet boundary condition
                     ):
@@ -361,10 +363,10 @@ class System_of_equations:
             node = nodeSet[node_]
             i_global = node * self.dm + dm_specified
             self.dof[i_global] = sval
-    
 
-    def neumannBC(self, load_facets, load_val: float, load_dir=np.array([])):  # Neumann boundary condition, 
-                                                                       # should be modified latter to taichi version!!!
+
+    def neumannBC(self, load_facets, load_val: float, load_dir=np.array([])):  # Neumann boundary condition,
+        # should be modified latter to taichi version!!!
         """
         load_facets: list(tuple), the boundary facets with load (i.e., the boundary with specific flux value)
         freeload_facets: boundary without specified value of flux(field gradient)
@@ -379,35 +381,35 @@ class System_of_equations:
         body = self.body; ELE = self.ELE
         body.get_boundary()
         self.rhs.fill(0.)  # refresh the right hand side before apply Neumann BC
-        
+
         for facet in load_facets:
             ele = body.boundary[facet]
             for node0 in facet:  # traction force of this facet applies to node0
 
-                ### obtain the facet normals on the free-load boundary 
+                ### obtain the facet normals on the free-load boundary
                 ###     (points to the outside of the element)
                 localNodes = np.array([body.np_nodes[node, :] for node in body.np_elements[ele, :]])
                 eleNodesList = body.np_elements[ele, :].tolist()
                 localFacet = [eleNodesList.index(i) for i in facet]
                 for integId in range(ELE.integPointNum_eachFacet):
-                    normal_vector, area_x_weight = ELE.globalNormal(nodes=localNodes, 
-                                                                    facet=localFacet, 
+                    normal_vector, area_x_weight = ELE.globalNormal(nodes=localNodes,
+                                                                    facet=localFacet,
                                                                     integPointId=integId)
                     ### get the flux, which can also be interpreted as traction force
-                    if len(load_dir) == 0: 
+                    if len(load_dir) == 0:
                         flux = load_val * normal_vector * area_x_weight
                     else:
-                        flux = load_val * load_dir * area_x_weight   
+                        flux = load_val * load_dir * area_x_weight
 
                     ### get the sequence of this node in the element
                     natCoo = ELE.facet_natural_coos[tuple(sorted(localFacet))][integId]
                     nid = list(body.np_elements[ele, :]).index(node0)
-                    shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid] 
+                    shapeVal = ELE.shapeFunc_pyscope(natCoo)[nid]
 
                     for i in range(self.dm):
                         self.rhs[node0*self.dm + i] += flux[i] * shapeVal
 
-    
+
     @ti.func
     def sparseMatrix_get_j(self, i_global, j_global):
         j_local = 0
@@ -415,7 +417,7 @@ class System_of_equations:
             if self.sparseIJ[i_global][j + 1] == j_global:
                 j_local = j
         return j_local
-    
+
 
     def check_sparseIJ(self, ):
         """check whether indexes repeatly appear in sparseIJ"""
@@ -449,36 +451,36 @@ class System_of_equations:
             self.get_mises_stress_planeStress()
         else:
             self.get_mises_stress_3d()
-    
 
-    @ti.kernel 
+
+    @ti.kernel
     def get_mises_stress_planeStress(self, ):
-        eye = ti.Matrix([[1., 0., 0.], 
-                         [0., 1., 0.], 
+        eye = ti.Matrix([[1., 0., 0.],
+                         [0., 1., 0.],
                          [0., 0., 1.]])
         for ele in self.elements:
             for igp in range(self.ELE.gaussPoints.shape[0]):
                 stress_2d = self.cauchy_stress[ele, igp]
-                stress = ti.Matrix([ 
-                    [stress_2d[0, 0], stress_2d[0, 1], 0.], 
+                stress = ti.Matrix([
+                    [stress_2d[0, 0], stress_2d[0, 1], 0.],
                     [stress_2d[1, 0], stress_2d[1, 1], 0.],
                     [0., 0., 0.],
                 ])
                 deviatoric_stress = stress - eye * stress.trace() / 3.
                 self.mises_stress[ele, igp] = (3./2. * (deviatoric_stress * deviatoric_stress).sum())**0.5
-    
 
-    @ti.kernel 
+
+    @ti.kernel
     def get_mises_stress_planeStrain(self, ):
         nu = self.material.poisson_ratio
-        eye = ti.Matrix([[1., 0., 0.], 
-                         [0., 1., 0.], 
+        eye = ti.Matrix([[1., 0., 0.],
+                         [0., 1., 0.],
                          [0., 0., 1.]])
         for ele in self.elements:
             for igp in range(self.ELE.gaussPoints.shape[0]):
                 stress_2d = self.cauchy_stress[ele, igp]
-                stress = ti.Matrix([ 
-                    [stress_2d[0, 0], stress_2d[0, 1], 0.], 
+                stress = ti.Matrix([
+                    [stress_2d[0, 0], stress_2d[0, 1], 0.],
                     [stress_2d[1, 0], stress_2d[1, 1], 0.],
                     [0., 0., nu * (stress_2d[0, 0] + stress_2d[1, 1])],
                 ])
@@ -488,8 +490,8 @@ class System_of_equations:
 
     @ti.kernel
     def get_mises_stress_3d(self, ):
-        eye = ti.Matrix([[1., 0., 0.], 
-                         [0., 1., 0.], 
+        eye = ti.Matrix([[1., 0., 0.],
+                         [0., 1., 0.],
                          [0., 0., 1.]])
         for ele in self.elements:
             for igp in range(self.ELE.gaussPoints.shape[0]):
@@ -502,31 +504,31 @@ class System_of_equations:
         ### =========== apply the boundary condition ===========
         neumannBCs = boundary_conditions["neumannBCs"]
         dirichletBCs = boundary_conditions["dirichletBCs"]
-        
+
         ### first, apply Neumann BC
         for neumannBC in neumannBCs:
             if "direction" in neumannBC:
-                self.neumannBC(neumannBC["face_set"], 
-                                load_val=neumannBC["traction"], 
+                self.neumannBC(neumannBC["face_set"],
+                                load_val=neumannBC["traction"],
                                 load_dir=neumannBC["direction"])
             else:
-                self.neumannBC(neumannBC["face_set"], 
+                self.neumannBC(neumannBC["face_set"],
                                 load_val=neumannBC["traction"])
-        
+
         ### then, apply Dirichlet BC
         if self.geometric_nonlinear == False:
             for dirichletBC in dirichletBCs:
                 self.dirichletBC_linearEquations(
-                        dirichletBC["node_set"], dirichletBC["dof"], 
+                        dirichletBC["node_set"], dirichletBC["dof"],
                         dirichletBC["val"])
         else:  # large deformation (geometric nonlinear), dirichlet BC is imposed latter at Newton's method
             for dirichletBC in dirichletBCs:
                 self.dirichletBC_dof(
-                        dirichletBC["node_set"], dirichletBC["dof"], 
+                        dirichletBC["node_set"], dirichletBC["dof"],
                         dirichletBC["val"], dirichletBC["user"], self.time1)
 
 
-    @ti.kernel 
+    @ti.kernel
     def get_deformation_gradient(self, ):
         """get the deformation gradient of each integration point"""
         dm, elements, nodes, gaussPoints = ti.static(
@@ -548,12 +550,12 @@ class System_of_equations:
                 dnatdX = (local_nodes.transpose() @ dsdn).inverse()  # deformation gradient refers to initial configuration
                 dsdX = dsdn @ dnatdX  # strain = (u_node1, u_node2, u_node3) * dsdx
                 dudX = local_us.transpose() @ dsdX
-                
+
                 ### get the deformation gradient, F = I + dudX
                 self.F[ele, igp] = dudX + eye
-    
 
-    @ti.kernel 
+
+    @ti.kernel
     def get_strain_smallDeformation(self, ):
         """get the strain directly according to deformation gradient
            the strain here is just for visulization, not for constitutive"""
@@ -562,14 +564,14 @@ class System_of_equations:
         eye = ti.Matrix.zero(ti.f64, dm, dm)
         for i in range(eye.n):
             eye[i, i] = 1.
-        
+
         for ele in elements:
             for igp in range(gaussPoints.shape[0]):
                 F = self.F[ele, igp]
                 strain[ele, igp] = (F + F.transpose()) / 2. - eye
-        
 
-    @ti.kernel 
+
+    @ti.kernel
     def get_strain_largeDeformation(self, ):
         """get the strain directly according to deformation gradient
            the strain here is just for visulization, not for constitutive
@@ -579,7 +581,7 @@ class System_of_equations:
         eye = ti.Matrix.zero(ti.f64, dm, dm)
         for i in range(eye.n):
             eye[i, i] = 1.
-        
+
         for ele in elements:
             for igp in range(gaussPoints.shape[0]):
                 F = self.F[ele, igp]
@@ -590,7 +592,7 @@ class System_of_equations:
         """get elatic energy (density and total energy)"""
         self.get_deformation_gradient()
         self.get_elasEng_kernel()
-    
+
     @ti.kernel
     def get_elasEng_kernel(self, ):
         """first, get elatic energy density"""
@@ -613,11 +615,11 @@ class System_of_equations:
         ### assemble to nodal force
         self.assemble_nodal_force_GN_kernel()
 
-    
+
     @ti.kernel
     def assemble_nodal_force_GN_kernel(self, ):
         dm, nodal_force, nodeEles, nodes, gaussPoints, dsdx, cauchy_stress = ti.static(
-            self.dm, self.nodal_force, self.nodeEles, self.nodes, 
+            self.dm, self.nodal_force, self.nodeEles, self.nodes,
             self.ELE.gaussPoints, self.dsdx, self.cauchy_stress)
         ### refresh the nodal force before assembling
         for i in nodal_force:
@@ -641,13 +643,13 @@ class System_of_equations:
                             nodal_force[node0 * dm + i] + dsdx_x_stress[i] * self.vol[ele, igp]
 
 
-    def solve(self, inp: Inp_info, show_newton_steps: bool=False, save2path: str=None):
+    def solve(self, inp: InpInfoBase, show_newton_steps: bool=False, save2path: str=None):
         """solved by multiple time increments, each increment calls slove_inc()"""
         max_inc = inp.time_incs["max_inc"]
         min_inc = inp.time_incs["min_inc"]
         max_time = inp.time_incs["max_time"]
         self.dt = inp.time_incs["ini_inc"]
-        
+
         neumannBCs = copy.deepcopy(inp.neumann_bc_info)
         dirichletBCs = copy.deepcopy(inp.dirichlet_bc_info)
         for dirichletBC in dirichletBCs:
@@ -684,7 +686,7 @@ class System_of_equations:
             for id, dirichletBC in enumerate(dirichletBCs):
                 dirichletBC["val"] = inp.dirichlet_bc_info[id]["val"] * load_ratio
             ### advance a time increment
-            converged, newton_loop = self.advance_inc(inp, boundary_conditions, 
+            converged, newton_loop = self.advance_inc(inp, boundary_conditions,
                                                       show_newton_steps, save2path, window)  # update self.dof
             if not converged:
                 self.time1 = self.time0
@@ -706,11 +708,11 @@ class System_of_equations:
             if self.geometric_nonlinear:
                 fileName = f"{save2path}_time{self.time1:.4f}.png" if save2path else None
                 self.show_window(window, fileName)
-    
-    
-    def advance_inc(self, inp: Inp_info, boundary_conditions: dict, 
-                    show_newton_steps: bool=False, save2path: str=None, 
-                    window: Union[ti.ui.Window, ti.GUI]=None, 
+
+
+    def advance_inc(self, inp: InpInfoBase, boundary_conditions: dict,
+                    show_newton_steps: bool=False, save2path: str=None,
+                    window: Union[ti.ui.Window, ti.GUI]=None,
                   ) -> Tuple[bool, int]:
 
         def inside_relaxation():
@@ -723,7 +725,7 @@ class System_of_equations:
                 fileName = self.write_image_name(save2path, newton_loop+1, relax_loop+1)
                 self.show_window(window, fileName)
             return residual
-        
+
 
         """solve at each time increment"""
         geometric_nonlinear = inp.geometric_nonlinear
@@ -742,13 +744,13 @@ class System_of_equations:
 
         ### impost boundary condition at the initial state
         self.impose_boundary_condition(boundary_conditions)
-        
+
         if geometric_nonlinear == False:  # small deformation
             self.solve_dof()
             return True, 0
-        
+
         else:  # large deformation, use newton method
-            
+
             ### compute nodal force for large deformation
             self.assemble_nodal_force_GN(); self.assemble_stiffnessMtrx()
             tg.c_equals_a_minus_b(self.residual_nodal_force, self.nodal_force, self.rhs)
@@ -766,7 +768,7 @@ class System_of_equations:
             else:
                 newton_loop = -1
                 while pre_residual / (self.ini_residual + 1.e-30) >= 0.01:  # not convergent
-                    
+
                     newton_loop += 1
                     if newton_loop >= 24:
                         return False, newton_loop  # Newton's method has not converged
@@ -802,7 +804,7 @@ class System_of_equations:
                             tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, +relaxation, du)
                             residual = inside_relaxation()
                             relaxation *= 0.5
-                    
+
                     ### relaxation for Newton's method when residual gets bigger
                     relax_loop = -1; relaxation = 0.5
                     while residual > pre_residual:
@@ -810,7 +812,7 @@ class System_of_equations:
                         if relax_loop >= 2:
                             break
                         print("\033[35;1m relaxation = {} \033[0m".format(relaxation))
-                        ### self.dof += (1. - relaxation) * du, i.e., recover dof, then update with relaxation  
+                        ### self.dof += (1. - relaxation) * du, i.e., recover dof, then update with relaxation
                         tg.a_equals_b_plus_c_mul_d(self.dof, self.dof, (1. - relaxation), du)
                         tg.field_multiply(du, relaxation)
                         residual = inside_relaxation()
@@ -839,22 +841,22 @@ class System_of_equations:
         else:
             fileName = None
         return fileName
-        
+
 
 if __name__ == "__main__":
     ti.init(arch=ti.cuda, dynamic_index=True, default_fp=ti.f64)
     fileName = input("\033[32;1m please give the .inp format's "
                         "input file path and name: \033[0m")
     ### for example, fileName = ./tests/elliptic_membrane/element_linear/ellip_membrane_linEle_localVeryFine.inp
-    inp = Inp_info(fileName)
+    inp = InpInfoBase(fileName)
     nodes, eSets = inp.nodes, inp.eSets
     body = Body(nodes=nodes, elements=list(eSets.values())[0])
     ele_type = list(eSets.keys())[0]
     if ele_type[0:3] == "CPS":
-        material = LinearIsotropicPlaneStress(modulus=inp.materials["Elastic"][0], 
+        material = LinearIsotropicPlaneStress(modulus=inp.materials["Elastic"][0],
                                                 poisson_ratio=inp.materials["Elastic"][1])
     elif ele_type[0:3] == "CPE":
-        material = LinearIsotropicPlaneStrain(modulus=inp.materials["Elastic"][0], 
+        material = LinearIsotropicPlaneStrain(modulus=inp.materials["Elastic"][0],
                                                 poisson_ratio=inp.materials["Elastic"][1])
 
     equationSystem = System_of_equations(body, material, inp.geometric_nonlinear)
@@ -867,7 +869,7 @@ if __name__ == "__main__":
     stress = equationSystem.mises_stress.to_numpy()
     print("\033[35;1m maximum mises stress = {} MPa \033[0m".format(abs(stress).max()))
     print("\033[40;33;1m max dof (disp) = {} \033[0m".format(tg.field_abs_max(equationSystem.dof)))
-    
+
     windowLength = 512
     gui = ti.GUI('show body', res=(windowLength, windowLength))
     while gui.running:
