@@ -171,10 +171,11 @@ class System_of_equations:
             stress_voigt = ddsdde[ele, igp] @ strain  # stress = C·B
             bcb = strain.transpose() @ stress_voigt  # stiffness, BT·C·B
 
+            Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
+
             ### integrate to the large sparse matrix
             for node in range(elements[ele].n):
                 node0 = elements[ele][node]  # global node index
-                Js = ti.Vector([x + i for x in elements[ele]*dm for i in range(dm)])
                 for i_local in range(dm):
                     i_global = node0 * dm + i_local
                     for j_local in range(Js.n):
